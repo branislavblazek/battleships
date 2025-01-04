@@ -1,25 +1,25 @@
-# ⛴️🔭💥💣 battleships game
+# ⛴️💥 battleships game
 
-## install
+## 💉install
 ```bash
 git clone ...
 cd battleships
 make
 ```
 
-## run
+## 🚀run
 Make sure u have already executed `make`
 ```bash
 make run
 ```
 
-## memory check
+## 🩻memory check
 Make sure u have already executed `make`
 ```bash
 make valgrind
 ```
 
-## cleanup
+## 🧹cleanup
 Make sure u have already executed `make`
 ```bash
 make clean
