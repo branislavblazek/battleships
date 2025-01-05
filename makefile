@@ -1,15 +1,15 @@
-CC 	= g++
-CFLAGS  = -std=c++17 -Wall -g
-SRC 	= main.cpp
-OBJ 	= $(SRC:.cpp=.o)
-TARGET 	= BattleshipsApp
+CC 		= g++
+CFLAGS  	= -std=c++17 -Wall -Wextra -g -pthread
+SRCS 		= main.c server.c client.c pipe.c
+OBJS 		= $(SRCS:.c=.o)
+TARGET 		= BattleshipsApp
 
 all: $(TARGET)
 
-$(TARGET): $(OBJ)
+$(TARGET): $(OBJS)
 	$(CC) $(CFLAGS) -o $@ $^
 
-%.o: %.cpp
+%.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 run: $(TARGET)
@@ -19,5 +19,5 @@ valgrind: $(TARGET)
 	valgrind --leak-check=full --show-leak-kinds=all ./$(TARGET)
 
 clean:
-	rm -f $(OBJ) $(TARGET)
+	rm -f $(OBJS) $(TARGET)
 

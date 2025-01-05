@@ -1,6 +1,32 @@
+#include "server.h"
+#include "client.h"
+#include "pipe.h"
+#include "config.h"
+
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/wait.h>
 
 int main() {
-   printf("Ahoj svet\n");
+   pipe_init(PIPE_PATH);
+
+   const pid_t pid = fork();
+
+   if (pid < 0) {
+      perror("ERROR: Incorrect PID from fork!");
+      return EXIT_FAILURE;
+   }
+
+   if (pid == 0) {
+      run_server();
+   } else {
+      run_client();
+      wait(NULL);
+	
+      pipe_destroy(PIPE_PATH);
+      printf("Bye\n");
+   }
+
    return 0;
 }
