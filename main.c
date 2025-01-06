@@ -9,8 +9,6 @@
 #include <sys/wait.h>
 
 int main() {
-   pipe_init(PIPE_PATH);
-
    const pid_t pid = fork();
 
    if (pid < 0) {
@@ -24,7 +22,6 @@ int main() {
       run_client();
       wait(NULL);
 	
-      pipe_destroy(PIPE_PATH);
       printf("Bye\n");
    }
 
