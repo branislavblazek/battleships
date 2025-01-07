@@ -1,6 +1,6 @@
 CC 		= g++
 CFLAGS  	= -std=c++17 -Wall -Wextra -g -pthread
-SRCS 		= main.c server.c client.c pipe.c
+SRCS 		= main.c server.c client.c pipe.c communication.c
 OBJS 		= $(SRCS:.c=.o)
 TARGET 		= BattleshipsApp
 
