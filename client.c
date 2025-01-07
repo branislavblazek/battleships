@@ -1,5 +1,6 @@
 #include "config.h"
 #include "pipe.h"
+#include "communication.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -36,11 +37,47 @@ void connect_server(fd_fifo_client_struct *ffc) {
   }
 }
 
-void close(fd_fifo_client_struct *ffc) {
+void close_pipes(fd_fifo_client_struct *ffc) {
   pipe_close(ffc->fd_fifo_server_write);
   pipe_close(ffc->fd_fifo_server_read);
   pipe_close(ffc->fd_fifo_handshake_write);
   pipe_close(ffc->fd_fifo_handshake_read);
+}
+
+void game(fd_fifo_client_struct *ffc) {
+  char buffer[BUFFER_SIZE];
+  char enemyCoordsPrefix[3];
+  char enemyCoordsData[3];
+
+  while (1) {
+    read_message(ffc->fd_fifo_server_read, buffer);
+
+    int isMyTurn = strcmp(buffer, "TURN") == 0;
+    int isWaiting = strcmp(buffer, "WAIT") == 0 || buffer[0] == '\0';
+    int isExit = strcmp(buffer, "BYE") == 0;
+    int isPossibleEnemyCoords = strlen(buffer) == 4;
+
+    if (isMyTurn) {
+      char coords[BUFFER_SIZE];
+      printf("Enter coordinates for attack: ");
+      scanf("%s", coords);
+      send_message(ffc->fd_fifo_server_write, coords);
+    } else if (isWaiting) {
+      printf("Wait for enemy...\n");
+    } else if (isExit) {
+      return;
+    } else if (isPossibleEnemyCoords) {
+      strncpy(enemyCoordsPrefix, buffer, 2);
+
+      enemyCoordsPrefix[2] = '\0';
+      if (strcmp(enemyCoordsPrefix, "EN") == 0) {
+        enemyCoordsData[0] = buffer[2];
+        enemyCoordsData[1] = buffer[3];
+        enemyCoordsData[2] = '\0';
+        printf("Enemy's coords: %s\n", enemyCoordsData);
+      } 
+    }
+  }
 }
 
 void run_client() {
@@ -60,23 +97,25 @@ void run_client() {
     exit(1);
   }
 
-  int num;
-  while (1) {
-      printf("Zadajte číslo na odoslanie: ");
-      scanf("%d", &num);
+  game(&ffc);
 
-      if (write(ffc.fd_fifo_server_write, &num, sizeof(int)) == -1) {
-          perror("Chyba pri odoslaní čísla");
-          break;
-      }
+  // int num;
+  // while (1) {
+  //     printf("Zadajte číslo na odoslanie: ");
+  //     scanf("%d", &num);
 
-      if (read(ffc.fd_fifo_server_read, &num, sizeof(int)) > 0) {
-          printf("Prijaté číslo: %d\n", num);
-      } else {
-          printf("Spojenie so serverom prerušené.\n");
-          break;
-      }
-  }
+  //     if (write(ffc.fd_fifo_server_write, &num, sizeof(int)) == -1) {
+  //         perror("Chyba pri odoslaní čísla");
+  //         break;
+  //     }
 
-  close(&ffc);
+  //     if (read(ffc.fd_fifo_server_read, &num, sizeof(int)) > 0) {
+  //         printf("Prijaté číslo: %d\n", num);
+  //     } else {
+  //         printf("Spojenie so serverom prerušené.\n");
+  //         break;
+  //     }
+  // }
+
+  close_pipes(&ffc);
 }
