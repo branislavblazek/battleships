@@ -134,7 +134,7 @@ void message_turn_data(fd_fifo_server_struct *ffs, int turn, char *data) {
 
 void game(fd_fifo_server_struct *ffs) {
   char coords[3];
-  // char message[BUFFER_SIZE];
+  char message[BUFFER_SIZE];
   int turn = 0;
   // will be removed....
   int MAX_ATTEMPS = 8;
@@ -151,8 +151,10 @@ void game(fd_fifo_server_struct *ffs) {
 
     printf("Got _%s_ from client %d\n", coords, turn + 1);
 
-    //snprintf(message, "EN%s", coords);
-    // message_turn_data(ffs, 1 - turn, message);
+    sprintf(message, "EN%s", coords);
+    message_turn_data(ffs, 1 - turn, message);
+
+    usleep(1000);
     
 
     turn = 1 - turn;
