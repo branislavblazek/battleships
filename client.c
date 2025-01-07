@@ -48,6 +48,7 @@ void game(fd_fifo_client_struct *ffc) {
   char buffer[BUFFER_SIZE];
   char enemyCoordsPrefix[3];
   char enemyCoordsData[3];
+  int isStillWaiting = 0;
 
   while (1) {
     read_message(ffc->fd_fifo_server_read, buffer);
@@ -57,13 +58,20 @@ void game(fd_fifo_client_struct *ffc) {
     int isExit = strcmp(buffer, "BYE") == 0;
     int isPossibleEnemyCoords = strlen(buffer) == 4;
 
+    if (!isWaiting) {
+      isStillWaiting = 0;
+    }
+
     if (isMyTurn) {
       char coords[BUFFER_SIZE];
       printf("Enter coordinates for attack: ");
       scanf("%s", coords);
       send_message(ffc->fd_fifo_server_write, coords);
     } else if (isWaiting) {
-      printf("Wait for enemy...\n");
+      if (!isStillWaiting) {
+        isStillWaiting = 1;
+        printf("Wait for enemy...\n");
+      }
     } else if (isExit) {
       return;
     } else if (isPossibleEnemyCoords) {
