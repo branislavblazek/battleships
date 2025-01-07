@@ -1,7 +1,8 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#define PWD "/Users/branislav/Documents/Code/FRI/battleships"
+//#define PWD "/Users/branislav/Documents/Code/FRI/battleships"
+#define PWD "/home/blazek10/battleships"
 
 #define PATH_CLIENT_1_SERVER "/PC_PIPE_CLIENT_1_SERVER"
 #define PATH_CLIENT_2_SERVER "/PC_PIPE_CLIENT_2_SERVER"
