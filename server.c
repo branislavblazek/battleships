@@ -238,8 +238,10 @@ void* receiveFleetThread(void* args) {
         token = strtok(NULL, " ");
 
         // validuje a prida lod
-        if (isPlacementValid(fleetArgs->fleetGrid, x, y, size, isVertical)) {
-            placeShip(fleetArgs->fleetGrid, x, y, size, isVertical);
+        
+        int shipPlaced = placeShip(fleetArgs->fleetGrid, x, y, size, isVertical);
+        if(shipPlaced) {
+          //TODO vymazat
         } else {
             char message[BUFFER_SIZE];
             strcpy(message, "INVALID");
@@ -248,6 +250,7 @@ void* receiveFleetThread(void* args) {
             return NULL;
         }
     }
+    printGrid(fleetArgs->fleetGrid);
 
     // ak vsetko prebehlo v poriadku 
     //TODO klinet z nejakeho dovodu prijme iba ""
@@ -287,6 +290,7 @@ if (ffs.fd_fifo_handshake_read == -1 || ffs.fd_fifo_handshake_write == -1) {
   //prijatie flotil od hracov
   receiveFleetParallel(&ffs, &fleetGrid1, &fleetGrid2);
 
+  //TODO pridat interface hry pre pouzivatela
   game(&ffs, &fleetGrid1, &fleetGrid2);
 
   // int num;
