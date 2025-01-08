@@ -21,7 +21,7 @@ typedef struct {
   int fd_fifo_server_read;
 } fd_fifo_client_struct;
 
-void open_handshake(fd_fifo_client_struct *ffc) {
+void open_client_handshake(fd_fifo_client_struct *ffc) {
   ffc->fd_fifo_handshake_write = pipe_open_write(PIPE_HANDSHAKE_CLIENT_SERVER);
   ffc->fd_fifo_handshake_read = pipe_open_read(PIPE_HANDSHAKE_SERVER_CLIENT);
 }
@@ -43,18 +43,91 @@ void connect_server(fd_fifo_client_struct *ffc) {
   }
 }
 
-void close_pipes(fd_fifo_client_struct *ffc) {
+void close_client_pipes(fd_fifo_client_struct *ffc) {
   pipe_close(ffc->fd_fifo_server_write);
   pipe_close(ffc->fd_fifo_server_read);
   pipe_close(ffc->fd_fifo_handshake_write);
   pipe_close(ffc->fd_fifo_handshake_read);
 }
 
-
 void clearScreen() {
-    printf(CLEAR_SCREEN);
-    printf("\033[H"); // Presun na začiatok
-    fflush(stdout);
+  printf(CLEAR_SCREEN);
+  printf("\033[H"); // Presun na začiatok
+  fflush(stdout);
+}
+
+void process_turn(char *buffer) {
+  // XY1A.M
+    //XY-prefix;
+    //1A-coords;
+    //./X-water/hit;
+    //M/E-me/enemy
+  char coordsPrefix[3];
+  char coordsData[3];
+
+  strncpy(coordsPrefix, buffer, 2);
+  coordsPrefix[2] = '\0';
+  if (strcmp(coordsPrefix, "XY") == 0) {
+    coordsData[0] = buffer[2];
+    coordsData[1] = buffer[3];
+    coordsData[2] = '\0';
+    
+    if (buffer[5] == 'M') {
+      if (buffer[4] == '.') {
+        printf("\tMy attack was not successful.\n");
+      } else {
+        printf("\tI HIT HIM!\n");
+      }
+    } else {
+      if (buffer[4] == '.') {
+        printf("\tEnemy didn't shoot me! haha!.\n");
+      } else {
+        printf("\tOU NOU!\n");
+      }
+    }
+  }
+}
+
+void game_client(fd_fifo_client_struct *ffc) {
+  char buffer[BUFFER_SIZE];
+  char coordsUser[BUFFER_SIZE];
+
+  int isStillWaiting = 0;
+
+  while (1) {
+    int ok = read_message(ffc->fd_fifo_server_read, buffer);
+
+    if (ok == 1) { // disconnected
+      puts("Exit due to server disconnected.");
+      break;
+    }
+
+    int isMyTurn = strcmp(buffer, "TURN") == 0;
+    int isWaiting = strcmp(buffer, "WAIT") == 0 || buffer[0] == '\0';
+    int isExit = strcmp(buffer, "BYE") == 0;
+    int isPossibleCoords = strlen(buffer) == 6;
+
+    if (!isWaiting) {
+      isStillWaiting = 0;
+    }
+
+    if (isMyTurn) {
+      printf("Enter coordinates for attack: ");
+      scanf("%s", coordsUser);
+      send_message(ffc->fd_fifo_server_write, coordsUser);
+
+    } else if (isWaiting && !isStillWaiting) {
+      isStillWaiting = 1;
+      //printf("Wait for enemy...\n");
+
+    } else if (isPossibleCoords) {
+      process_turn(buffer);
+
+    } else if (isExit) {
+      return;
+
+    }
+  }
 }
 
 void drawGrids(Grid* trackingGrid, Grid* playerGrid) {
@@ -303,7 +376,7 @@ void waitForStart(fd_fifo_client_struct *ffc) {
 void run_client() {
   fd_fifo_client_struct ffc = { -1, -1, -1, -1 };
 
-  open_handshake(&ffc);
+  open_client_handshake(&ffc);
 
   if (ffc.fd_fifo_handshake_write == -1 || ffc.fd_fifo_handshake_read == -1) {
     perror("Error with connection to FIFO pipelines");
@@ -326,8 +399,9 @@ void run_client() {
   createAndSendFleet(ffc.fd_fifo_server_read, ffc.fd_fifo_server_write, &player);
 
   printf("strarting game(ffc)\n");
+
   //game(&ffc);
-  game(&ffc,&(player.trackingGrid),&(player.fleetGrid));
+  game(&ffc, &(player.trackingGrid), &(player.fleetGrid));
 
   // int num;
   // while (1) {
@@ -347,5 +421,5 @@ void run_client() {
   //     }
   // }
 
-  close_pipes(&ffc);
+  close_client_pipes(&ffc);
 }

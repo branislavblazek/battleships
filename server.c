@@ -1,7 +1,6 @@
 #include "config.h"
 #include "pipe.h"
 #include "communication.h"
-
 #include "player.h"
 
 #include <stdio.h>
@@ -9,9 +8,9 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
-
+#include <time.h>
+#include <signal.h>
 #include <pthread.h>
-
 
 typedef struct {
   int fd_fifo_handshake_read;
@@ -38,9 +37,10 @@ void destroy() {
   pipe_destroy(PIPE_SERVER_CLIENT_1);
   pipe_destroy(PIPE_CLIENT_2_SERVER);
   pipe_destroy(PIPE_SERVER_CLIENT_2);
+  exit(0);
 }
 
-void open_handshake(fd_fifo_server_struct *ffs) {
+void open_server_handshake(fd_fifo_server_struct *ffs) {
   ffs->fd_fifo_handshake_read = pipe_open_read(PIPE_HANDSHAKE_CLIENT_SERVER);
   ffs->fd_fifo_handshake_write = pipe_open_write(PIPE_HANDSHAKE_SERVER_CLIENT);
 }
@@ -72,7 +72,7 @@ void connect_clients(fd_fifo_server_struct *ffs) {
   }
 }
 
-void close(fd_fifo_server_struct *ffs) {
+void close_server_pipes(fd_fifo_server_struct *ffs) {
   pipe_close(ffs->fd_fifo_client_1_read);
   pipe_close(ffs->fd_fifo_client_1_write);
   pipe_close(ffs->fd_fifo_client_2_read);
@@ -103,12 +103,23 @@ void message_wait(fd_fifo_server_struct *ffs, int turn) {
   send_message(fd, message);
 }
 
-void message_bye(fd_fifo_server_struct *ffs) {
+void message_bye_all(fd_fifo_server_struct *ffs) {
   char message[BUFFER_SIZE];
   strcpy(message, "BYE");
   
   send_message(ffs->fd_fifo_client_1_write, message);
   send_message(ffs->fd_fifo_client_2_write, message);
+}
+
+void message_bye(fd_fifo_server_struct *ffs, int turn) {
+  char message[BUFFER_SIZE];
+  strcpy(message, "BYE");
+  
+  int fd = turn == 0
+    ? ffs->fd_fifo_client_1_write
+    : ffs->fd_fifo_client_2_write;
+  
+  send_message(fd, message);
 }
 
 int read_turn(fd_fifo_server_struct *ffs, int turn, char *coords) {
@@ -118,7 +129,11 @@ int read_turn(fd_fifo_server_struct *ffs, int turn, char *coords) {
     ? ffs->fd_fifo_client_1_read
     : ffs->fd_fifo_client_2_read;
 
-  read_message(fd, buffer);
+  int ok = read_message(fd, buffer);
+
+  if (ok == 1) { // disconnected
+    return -1;
+  }
 
   if (buffer[0] == '\0') {
     return 0;
@@ -138,38 +153,49 @@ void message_turn_data(fd_fifo_server_struct *ffs, int turn, char *data) {
   send_message(fd, data);
 }
 
-void game(fd_fifo_server_struct *ffs, Grid *fleetGrid1, Grid *fleetGrid2) {
+void game_server(fd_fifo_server_struct *ffs, Grid *fleetGrid1, Grid *fleetGrid2) {
   char coords[3];
-  char message[BUFFER_SIZE];
+  char target_message[BUFFER_SIZE];
   int turn = 0;
+  int smooth_run = 1;
   // will be removed....
-  int MAX_ATTEMPS = 8;
-  int attemps= 0; 
-  
-
+  int MAX_ATTEMPS = 6;
+  int attemps= 0;
 
   while (attemps < MAX_ATTEMPS) {
     message_turn(ffs, turn);
     message_wait(ffs, 1 - turn);
 
     int ok = read_turn(ffs, turn, coords);
-    if (!ok) {
+    if (ok == 0) {
       continue;
+    } else if (ok == -1) {
+      message_bye(ffs, 1 - turn);
+      smooth_run = 0;
+      puts("Exit due to client disconnected.");
+      break;
     }
 
     printf("Got _%s_ from client %d\n", coords, turn + 1);
 
-    sprintf(message, "EN%s", coords);
-    message_turn_data(ffs, 1 - turn, message);
+    double r = (double)rand() / RAND_MAX;
+    char target = r < 0.5 ? 'X' : '.';
+    sprintf(target_message, "XY%s%c", coords, target);
+    target_message[6] = '\0';
+
+    target_message[5] = 'M';
+    message_turn_data(ffs, turn, target_message);
+
+    target_message[5] = 'E';
+    message_turn_data(ffs, 1 - turn, target_message);
 
     usleep(1000);
-    
 
     turn = 1 - turn;
     attemps++;
   }
 
-  message_bye(ffs);
+  if (smooth_run) message_bye_all(ffs);
 }
 
 
@@ -262,20 +288,21 @@ void* receiveFleetThread(void* args) {
     return NULL;
 }
 
-
-
-
 void run_server() {
-fd_fifo_server_struct ffs = { -1, -1, -1, -1, -1, -1 };
+  srand(time(NULL));
 
-init();
+  fd_fifo_server_struct ffs = { -1, -1, -1, -1, -1, -1 };
 
-open_handshake(&ffs);
+  signal(SIGINT, destroy);
+  atexit(destroy);
 
-if (ffs.fd_fifo_handshake_read == -1 || ffs.fd_fifo_handshake_write == -1) {
-  perror("Error can't open FIFO pipelines");
-  exit(1);
-}
+  init();
+  open_server_handshake(&ffs);
+
+  if (ffs.fd_fifo_handshake_read == -1 || ffs.fd_fifo_handshake_write == -1) {
+    perror("Error can't open FIFO pipelines");
+    exit(1);
+  }
 
   connect_clients(&ffs);
 
@@ -291,24 +318,9 @@ if (ffs.fd_fifo_handshake_read == -1 || ffs.fd_fifo_handshake_write == -1) {
   receiveFleetParallel(&ffs, &fleetGrid1, &fleetGrid2);
 
   //TODO pridat interface hry pre pouzivatela
-  game(&ffs, &fleetGrid1, &fleetGrid2);
+  game_server(&ffs, &fleetGrid1, &fleetGrid2);
 
-  // int num;
-  // while (1) {
-  //     // Čítanie od klienta 1 a posielanie klientovi 2
-  //     if (read(ffs.fd_fifo_client_1_read, &num, sizeof(int)) > 0) {
-  //         printf("Od klienta 1 prijaté číslo: %d\n", num);
-  //         write(ffs.fd_fifo_client_2_write, &num, sizeof(int));
-  //     }
-
-  //     // Čítanie od klienta 2 a posielanie klientovi 1
-  //     if (read(ffs.fd_fifo_client_2_read, &num, sizeof(int)) > 0) {
-  //         printf("Od klienta 2 prijaté číslo: %d\n", num);
-  //         write(ffs.fd_fifo_client_1_write, &num, sizeof(int));
-  //     }
-  // }
-
-  close(&ffs);
+  close_server_pipes(&ffs);
 
   destroy();
 }
