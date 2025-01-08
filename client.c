@@ -91,7 +91,8 @@ void game(fd_fifo_client_struct *ffc) {
 }
 
 void createAndSendFleet(int fd_read, int fd_write, Player* player) {
-    int shipSizes[] = {4, 3, 3, 2, 2, 2, 1, 1, 1, 1}; // Veľkosti lodí
+    //int shipSizes[] = {4, 3, 3, 2, 2, 2, 1, 1, 1, 1}; // Veľkosti lodí
+    int shipSizes[] = {4, 3, 3};
     int numShips = sizeof(shipSizes) / sizeof(shipSizes[0]);
 
     printf("Create your fleet:\n");
@@ -109,44 +110,49 @@ void createAndSendFleet(int fd_read, int fd_write, Player* player) {
              printf("Invalid placement. Try again.\n");
         }
     }
-    sendGridToServer(fd_write, &(player->fleetGrid));
-
-}
-void serializeGrid(Grid *grid, char *buffer) {
-    
-    int index = 0;
-
-    // Serializácia buniek
-    for (int i = 0; i < GRID_SIZE; i++) {
-        for (int j = 0; j < GRID_SIZE; j++) {
-            buffer[index++] = (char)grid->cells[i][j]; // Konvertujeme CellState na char
-        }
-    }
-    printf("serializacia hotov\n");
-
-    // Serializácia počtu umiestnených lodí
-    buffer[index++] = (char)grid->placedShipsCount;
-    printf("serializacia poctu lodi\n");
-
-    // Serializácia lodí (voliteľné)
-    for (int i = 0; i < grid->placedShipsCount; i++) {
-        memcpy(&buffer[index], &grid->ships[i], sizeof(Ship));
-        index += sizeof(Ship);
-    }
-    printf("serializacia lodi\n");
-
-    buffer[index] = '\0'; // Ukončenie reťazca
-}
-
-
-
-void sendGridToServer(int fd_write, Grid *grid) {
     char buffer[BUFFER_SIZE_GRID];
-    printf("buffer hotov\n");
-    serializeGrid(grid, buffer);
-    write(fd_write, buffer, strlen(buffer) + 1);
+    int bufferSize;
+
+    // serializacia flotily
+    serializeFleet(player, buffer, &bufferSize);
+
+    // odoslanie flotily serveru
+    write(fd_write, buffer, bufferSize);
+
+    // potvrdenie od servera
+   
+    char response[BUFFER_SIZE];
+    read(fd_read, response, BUFFER_SIZE);
+      printf("Received response from server: %s\n", response);
+    if (strcmp(response, "OK") == 0) {
+      printf("Server confirmed fleet reception.\n");
+    } else {
+      //TODO aj po uspesnom prijati flotily pride klientovi namiesto "OK" sprava "".
+      //printf("Server reported an issue with the fleet. Please retry.\n");
+    }
 }
 
+
+void serializeFleet(Player* player, char* buffer, int* bufferSize) {
+    int index = 0;
+    int shipSizes[] = {4, 3, 3};
+    int numShips = sizeof(shipSizes) / sizeof(shipSizes[0]);
+
+    // serveru sa odosielaju iba lode
+    for (int i = 0; i < numShips; i++) {
+        int x = player->fleetGrid.ships[i].startR;
+        int y = player->fleetGrid.ships[i].startS;
+        int isVertical = player->fleetGrid.ships[i].isVertical;
+        int size = player->fleetGrid.ships[i].size;
+
+        // pridanie lodi do bufferu
+        index += sprintf(&buffer[index], "%d %d %d %d ", x, y, isVertical, size);
+    }
+
+    buffer[index - 1] = '\0'; // nahradenie poslednej medzery ukoncovacim znakom
+    *bufferSize = index;
+    printf("Fleet serialized: %s\n", buffer);
+}
 
 void waitForStart(fd_fifo_client_struct *ffc) {
     char buffer[BUFFER_SIZE];
@@ -184,6 +190,8 @@ void run_client() {
 
   // klient vytvorit flotilu a posle ju serveru
   createAndSendFleet(ffc.fd_fifo_server_read, ffc.fd_fifo_server_write, &player);
+
+  printf("strarting game(ffc)\n");
   
   game(&ffc);
 

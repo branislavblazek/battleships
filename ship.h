@@ -10,8 +10,4 @@ typedef struct {
     int isSunk;
 } Ship;
 
-// Funkcie na prácu s loďami
-//void placeShip(Grid* grid, Ship* ship);
-
-
 #endif // SHIP_H

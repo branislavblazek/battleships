@@ -12,7 +12,7 @@ void initializePlayer(Player* player, const char* name) {
     
 }
 
-// Výpis hráčovej flotily - seba alebo nepriateľa
+// Výpis hráčovej flotily
 void printPlayerGrid(Player* player) {
     printf("\n%s's Fleet Grid:\n", player->name);
     printGrid(&player->fleetGrid);
@@ -20,9 +20,6 @@ void printPlayerGrid(Player* player) {
     printf("\n%s's Tracking Grid:\n", player->name);
     printGrid(&player->trackingGrid);
 }
-
-// Kontrola, či sú všetky lode hráča zničené
-
 
 int shoot(Grid* opponentGrid, Grid* trackingGrid, int x, int y) {
     if (opponentGrid->cells[x][y] == SHIP) {
@@ -42,18 +39,17 @@ int shoot(Grid* opponentGrid, Grid* trackingGrid, int x, int y) {
 #include <time.h>
 
 void generateRandomFleet(Grid* grid) {
-    srand(time(NULL)); // Inicializácia RNG
+    srand(time(NULL)); 
 
-    int shipSizes[] = {4, 3, 3, 2, 2, 2, 1, 1, 1, 1}; // Veľkosti lodí
+    //TODO inicializovat velkosti lodi univerzalne
+    int shipSizes[] = {4, 3, 3, 2, 2, 2, 1, 1, 1, 1}; 
 
     for (int i = 0; i < 10; i++) {
         int size = shipSizes[i];
-        while (1) { // Pokúšaj sa umiestniť loď, kým nenájdeš platné miesto
+        while (1) { 
             int r = rand() % GRID_SIZE;
             int s = rand() % GRID_SIZE;
             int isVertical = rand() % 2;
-
-            Ship ship = {size, r, s, isVertical, 0}; // Vytvor novú loď
             placeShip(grid, r, s, size, isVertical);
         }
     }

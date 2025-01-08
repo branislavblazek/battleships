@@ -8,18 +8,14 @@ typedef struct {
     char name[50];      // Meno hráča
     Grid fleetGrid;     // Grid s jeho flotilou
     Grid trackingGrid;  // Grid na sledovanie súpera
-         // Zoznam lodí (1x4, 2x3, 3x2, 4x1)
-    
     int score;          // Počet zničených lodí súpera
 } Player;
 
-// Funkcie pre hráča
+
 void initializePlayer(Player* player, const char* name);
 void printPlayerGrid(Player* player);
-
 int shoot(Grid* opponentGrid, Grid* trackingGrid, int r, int s);
 int placeShip(Grid* grid, int startR, int startC,int size, int isVertical);
-
 void generateRandomFleet(Player* player);
 
 #endif // PLAYER_H

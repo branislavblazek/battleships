@@ -182,51 +182,23 @@ typedef struct {
     Grid* fleetGrid;
 } FleetThreadArgs;
 
-void* receiveFleetThread(void* args) {
-    FleetThreadArgs* fleetArgs = (FleetThreadArgs*)args;
-    char buffer[BUFFER_SIZE];
-    int fd_read = (fleetArgs->client_id == 1)
-        ? fleetArgs->ffs->fd_fifo_client_1_read
-        : fleetArgs->ffs->fd_fifo_client_2_read;
-    int fd_write = (fleetArgs->client_id == 1)
-        ? fleetArgs->ffs->fd_fifo_client_1_write
-        : fleetArgs->ffs->fd_fifo_client_2_write;
-
-    printf("Receiving fleet for Client %d...\n", fleetArgs->client_id);
-
-
-    for (int i = 0; i < 10; i++) { // 10 lodí
-        read_message(fd_read, buffer);
-
-        int x, y, isVertical, size;
-        sscanf(buffer, "%d %d %d %d", &x, &y, &isVertical, &size);
-
-        if (isPlacementValid(fleetArgs->fleetGrid, x, y, size, isVertical)) {
-            placeShip(fleetArgs->fleetGrid, x, y, size, isVertical);
-            send_message(fd_write, "OK");
-        } else {
-            send_message(fd_write, "INVALID");
-            i--; // Opakuj aktuálnu loď
-        }
-    }
-
-    printf("Fleet received for Client %d.\n", fleetArgs->client_id);
-    return NULL;
-}
 
 void receiveFleetParallel(fd_fifo_server_struct* ffs, Grid* grid1, Grid* grid2) {
+    printf("starting receiveFleetParallel");
     pthread_t thread1, thread2;
     FleetThreadArgs args1 = {ffs, 1, grid1};
     FleetThreadArgs args2 = {ffs, 2, grid2};
 
-    // Spusti dva paralelné vlákna na prijímanie flotily
+    // dve paralelne vlakna na zvolenie flotily
     pthread_create(&thread1, NULL, receiveFleetThread, &args1);
     pthread_create(&thread2, NULL, receiveFleetThread, &args2);
 
-    // Počkaj na dokončenie oboch vlákien
+    // synchornizacia vlakien
     pthread_join(thread1, NULL);
+    printf("Fleet for Client 1 received successfully.\n");
     pthread_join(thread2, NULL);
-
+    printf("Fleet for Client 2 received successfully.\n");
+    
     printf("Both fleets have been received.\n");
 }
 
@@ -236,32 +208,57 @@ void notifyClientsToStart(fd_fifo_server_struct *ffs) {
     send_message(ffs->fd_fifo_client_2_write, message);
 }
 
-void deserializeGrid(Grid* grid, const char* buffer) {
-    int index = 0;
+void* receiveFleetThread(void* args) {
+    FleetThreadArgs* fleetArgs = (FleetThreadArgs*)args;
+    char buffer[BUFFER_SIZE_GRID];
+    int fd_read = (fleetArgs->client_id == 1)
+        ? fleetArgs->ffs->fd_fifo_client_1_read
+        : fleetArgs->ffs->fd_fifo_client_2_read;
+    int fd_write = (fleetArgs->client_id == 1)
+        ? fleetArgs->ffs->fd_fifo_client_1_write
+        : fleetArgs->ffs->fd_fifo_client_2_write;
 
-    // Deserializácia buniek
-    for (int i = 0; i < GRID_SIZE; i++) {
-        for (int j = 0; j < GRID_SIZE; j++) {
-            grid->cells[i][j] = (CellState)buffer[index++];
+    printf("Receiving fleet for Client %d...\n", fleetArgs->client_id);
+
+    // precita cely buffer
+    read(fd_read, buffer, sizeof(buffer));
+    printf("Received fleet: %s\n", buffer);
+
+    // rozbali lode z bufferu
+    int x, y, isVertical, size;
+    char* token = strtok(buffer, " ");
+    while (token != NULL) {
+        x = atoi(token);
+        token = strtok(NULL, " ");
+        y = atoi(token);
+        token = strtok(NULL, " ");
+        isVertical = atoi(token);
+        token = strtok(NULL, " ");
+        size = atoi(token);
+        token = strtok(NULL, " ");
+
+        // validuje a prida lod
+        if (isPlacementValid(fleetArgs->fleetGrid, x, y, size, isVertical)) {
+            placeShip(fleetArgs->fleetGrid, x, y, size, isVertical);
+        } else {
+            char message[BUFFER_SIZE];
+            strcpy(message, "INVALID");
+            send_message(fd_write, message);
+            printf("Invalid fleet received from Client %d.\n", fleetArgs->client_id);
+            return NULL;
         }
     }
 
-    // Deserializácia počtu umiestnených lodí
-    grid->placedShipsCount = (int)buffer[index++];
-
-    // Deserializácia lodí (voliteľné)
-    for (int i = 0; i < grid->placedShipsCount; i++) {
-        memcpy(&grid->ships[i], &buffer[index], sizeof(Ship));
-        index += sizeof(Ship);
-    }
+    // ak vsetko prebehlo v poriadku 
+    //TODO klinet z nejakeho dovodu prijme iba ""
+    printf("Fleet received for Client %d.\n", fleetArgs->client_id);
+    char message[BUFFER_SIZE];
+    strcpy(message, "OK");
+    send_message(fd_write, message);
+    printf("Sending OK to Client %d.\n", fleetArgs->client_id);
+    return NULL;
 }
 
-
-void receiveGridFromClient(int fd_read, Grid *grid) {
-    char buffer[BUFFER_SIZE_GRID];
-    read(fd_read, buffer, sizeof(buffer));
-    deserializeGrid(grid, buffer);
-}
 
 
 
@@ -279,17 +276,14 @@ if (ffs.fd_fifo_handshake_read == -1 || ffs.fd_fifo_handshake_write == -1) {
 
   connect_clients(&ffs);
 
- //posle hracom spravu ze mozu zacat vytvarat flotilu
+ //posle hracom spravu, ze mozu zacat vytvarat flotilu
   notifyClientsToStart(&ffs);
-  //vytvorenie flotil
+
+  //vytvorenie flotil pre server
   Grid fleetGrid1, fleetGrid2;
   initializeGrid(&fleetGrid1);
   initializeGrid(&fleetGrid2);
-
-  receiveGridFromClient(ffs.fd_fifo_client_1_read, &fleetGrid1);
-  receiveGridFromClient(ffs.fd_fifo_client_2_read, &fleetGrid2);
  
-
   //prijatie flotil od hracov
   receiveFleetParallel(&ffs, &fleetGrid1, &fleetGrid2);
 
