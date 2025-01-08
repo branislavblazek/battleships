@@ -1,6 +1,6 @@
 #ifndef SHIP_H
 #define SHIP_H
-#include "grid.h"
+
 
 typedef struct {
     int size;
@@ -11,7 +11,7 @@ typedef struct {
 } Ship;
 
 // Funkcie na prácu s loďami
-void placeShip(Grid* grid, Ship* ship);
-int isShipSunk(Grid* grid, Ship* ship);
+//void placeShip(Grid* grid, Ship* ship);
+
 
 #endif // SHIP_H

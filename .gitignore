@@ -2,3 +2,5 @@ build/*
 *.o
 BattleshipsApp
 .vscode/*
+server.log
+run_game.sh

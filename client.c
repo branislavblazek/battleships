@@ -1,6 +1,8 @@
 #include "config.h"
 #include "pipe.h"
 #include "communication.h"
+#include "player.h"
+#include "client.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -88,6 +90,76 @@ void game(fd_fifo_client_struct *ffc) {
   }
 }
 
+void createAndSendFleet(int fd_read, int fd_write, Player* player) {
+    int shipSizes[] = {4, 3, 3, 2, 2, 2, 1, 1, 1, 1}; // Veľkosti lodí
+    int numShips = sizeof(shipSizes) / sizeof(shipSizes[0]);
+
+    printf("Create your fleet:\n");
+
+    for (int i = 0; i < numShips; i++) {
+        int x, y, isVertical;
+
+        while (1) {
+            printf("Place ship of size %d (enter x y and 1 for vertical or 0 for horizontal): ", shipSizes[i]);
+            scanf("%d %d %d", &x, &y, &isVertical);
+            if (placeShip(&(player->fleetGrid),x,y,shipSizes[i],isVertical) == 1) {
+              printf("Ship placed successfully.\n");
+              break;
+            } 
+             printf("Invalid placement. Try again.\n");
+        }
+    }
+    sendGridToServer(fd_write, &(player->fleetGrid));
+
+}
+void serializeGrid(Grid *grid, char *buffer) {
+    
+    int index = 0;
+
+    // Serializácia buniek
+    for (int i = 0; i < GRID_SIZE; i++) {
+        for (int j = 0; j < GRID_SIZE; j++) {
+            buffer[index++] = (char)grid->cells[i][j]; // Konvertujeme CellState na char
+        }
+    }
+    printf("serializacia hotov\n");
+
+    // Serializácia počtu umiestnených lodí
+    buffer[index++] = (char)grid->placedShipsCount;
+    printf("serializacia poctu lodi\n");
+
+    // Serializácia lodí (voliteľné)
+    for (int i = 0; i < grid->placedShipsCount; i++) {
+        memcpy(&buffer[index], &grid->ships[i], sizeof(Ship));
+        index += sizeof(Ship);
+    }
+    printf("serializacia lodi\n");
+
+    buffer[index] = '\0'; // Ukončenie reťazca
+}
+
+
+
+void sendGridToServer(int fd_write, Grid *grid) {
+    char buffer[BUFFER_SIZE_GRID];
+    printf("buffer hotov\n");
+    serializeGrid(grid, buffer);
+    write(fd_write, buffer, strlen(buffer) + 1);
+}
+
+
+void waitForStart(fd_fifo_client_struct *ffc) {
+    char buffer[BUFFER_SIZE];
+    while (1) {
+        read_message(ffc->fd_fifo_server_read, buffer);
+        if (strcmp(buffer, "START") == 0) {
+            printf("Both players connected. You can now set up your fleet.\n");
+            break;
+        }
+    }
+}
+
+
 void run_client() {
   fd_fifo_client_struct ffc = { -1, -1, -1, -1 };
 
@@ -105,6 +177,14 @@ void run_client() {
     exit(1);
   }
 
+  waitForStart(&ffc);
+  
+  Player player;
+  initializePlayer(&player, "PLAYER1");
+
+  // klient vytvorit flotilu a posle ju serveru
+  createAndSendFleet(ffc.fd_fifo_server_read, ffc.fd_fifo_server_write, &player);
+  
   game(&ffc);
 
   // int num;

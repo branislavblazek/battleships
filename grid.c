@@ -7,6 +7,8 @@ void initializeGrid(Grid* grid) {
             grid->cells[i][j] = EMPTY;
         }
     }
+    grid->placedShipsCount = 0;
+    
 }
 
 int isPlacementValid(Grid* grid, int startX, int startY, int size, int isVertical) {
@@ -48,4 +50,27 @@ void printGrid(Grid* grid) {
         }
         printf("\n");
     }
+
+    
+}
+int isShipSunk(Grid* grid, Ship* ship) {
+    for (int i = 0; i < ship->size; i++) {
+        int r = ship->startR + (ship->isVertical ? i : 0);
+        int s = ship->startS + (ship->isVertical ? 0 : i);
+
+        if (grid->cells[r][s] != HIT) {
+            return 0; // Loď nie je potopená
+        }
+    }
+    ship->isSunk = 1; // Označ loď ako potopenú
+    return 1;         // Loď je potopená
+}
+
+int isFleetDestroyed(Grid* grid) {
+    for (int i = 0; i < 10; i++) {
+        if (!grid->ships[i].isSunk) {
+            return 0; // Hráč má ešte aktívnu loď
+        }
+    }
+    return 1; // Všetky lode sú zničené
 }

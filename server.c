@@ -2,11 +2,16 @@
 #include "pipe.h"
 #include "communication.h"
 
+#include "player.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
+
+#include <pthread.h>
+
 
 typedef struct {
   int fd_fifo_handshake_read;
@@ -118,7 +123,8 @@ int read_turn(fd_fifo_server_struct *ffs, int turn, char *coords) {
   if (buffer[0] == '\0') {
     return 0;
   }
-
+  
+   
   strncpy(coords, buffer, 2);
   coords[2] = '\0';
   return 1;
@@ -132,13 +138,15 @@ void message_turn_data(fd_fifo_server_struct *ffs, int turn, char *data) {
   send_message(fd, data);
 }
 
-void game(fd_fifo_server_struct *ffs) {
+void game(fd_fifo_server_struct *ffs, Grid *fleetGrid1, Grid *fleetGrid2) {
   char coords[3];
   char message[BUFFER_SIZE];
   int turn = 0;
   // will be removed....
   int MAX_ATTEMPS = 8;
   int attemps= 0; 
+  
+
 
   while (attemps < MAX_ATTEMPS) {
     message_turn(ffs, turn);
@@ -164,6 +172,99 @@ void game(fd_fifo_server_struct *ffs) {
   message_bye(ffs);
 }
 
+
+#include <pthread.h>
+#include "server.h"
+
+typedef struct {
+    fd_fifo_server_struct* ffs;
+    int client_id;
+    Grid* fleetGrid;
+} FleetThreadArgs;
+
+void* receiveFleetThread(void* args) {
+    FleetThreadArgs* fleetArgs = (FleetThreadArgs*)args;
+    char buffer[BUFFER_SIZE];
+    int fd_read = (fleetArgs->client_id == 1)
+        ? fleetArgs->ffs->fd_fifo_client_1_read
+        : fleetArgs->ffs->fd_fifo_client_2_read;
+    int fd_write = (fleetArgs->client_id == 1)
+        ? fleetArgs->ffs->fd_fifo_client_1_write
+        : fleetArgs->ffs->fd_fifo_client_2_write;
+
+    printf("Receiving fleet for Client %d...\n", fleetArgs->client_id);
+
+
+    for (int i = 0; i < 10; i++) { // 10 lodí
+        read_message(fd_read, buffer);
+
+        int x, y, isVertical, size;
+        sscanf(buffer, "%d %d %d %d", &x, &y, &isVertical, &size);
+
+        if (isPlacementValid(fleetArgs->fleetGrid, x, y, size, isVertical)) {
+            placeShip(fleetArgs->fleetGrid, x, y, size, isVertical);
+            send_message(fd_write, "OK");
+        } else {
+            send_message(fd_write, "INVALID");
+            i--; // Opakuj aktuálnu loď
+        }
+    }
+
+    printf("Fleet received for Client %d.\n", fleetArgs->client_id);
+    return NULL;
+}
+
+void receiveFleetParallel(fd_fifo_server_struct* ffs, Grid* grid1, Grid* grid2) {
+    pthread_t thread1, thread2;
+    FleetThreadArgs args1 = {ffs, 1, grid1};
+    FleetThreadArgs args2 = {ffs, 2, grid2};
+
+    // Spusti dva paralelné vlákna na prijímanie flotily
+    pthread_create(&thread1, NULL, receiveFleetThread, &args1);
+    pthread_create(&thread2, NULL, receiveFleetThread, &args2);
+
+    // Počkaj na dokončenie oboch vlákien
+    pthread_join(thread1, NULL);
+    pthread_join(thread2, NULL);
+
+    printf("Both fleets have been received.\n");
+}
+
+void notifyClientsToStart(fd_fifo_server_struct *ffs) {
+    char message[BUFFER_SIZE] = "START";
+    send_message(ffs->fd_fifo_client_1_write, message);
+    send_message(ffs->fd_fifo_client_2_write, message);
+}
+
+void deserializeGrid(Grid* grid, const char* buffer) {
+    int index = 0;
+
+    // Deserializácia buniek
+    for (int i = 0; i < GRID_SIZE; i++) {
+        for (int j = 0; j < GRID_SIZE; j++) {
+            grid->cells[i][j] = (CellState)buffer[index++];
+        }
+    }
+
+    // Deserializácia počtu umiestnených lodí
+    grid->placedShipsCount = (int)buffer[index++];
+
+    // Deserializácia lodí (voliteľné)
+    for (int i = 0; i < grid->placedShipsCount; i++) {
+        memcpy(&grid->ships[i], &buffer[index], sizeof(Ship));
+        index += sizeof(Ship);
+    }
+}
+
+
+void receiveGridFromClient(int fd_read, Grid *grid) {
+    char buffer[BUFFER_SIZE_GRID];
+    read(fd_read, buffer, sizeof(buffer));
+    deserializeGrid(grid, buffer);
+}
+
+
+
 void run_server() {
 fd_fifo_server_struct ffs = { -1, -1, -1, -1, -1, -1 };
 
@@ -176,9 +277,23 @@ if (ffs.fd_fifo_handshake_read == -1 || ffs.fd_fifo_handshake_write == -1) {
   exit(1);
 }
 
-connect_clients(&ffs);
+  connect_clients(&ffs);
 
-game(&ffs);
+ //posle hracom spravu ze mozu zacat vytvarat flotilu
+  notifyClientsToStart(&ffs);
+  //vytvorenie flotil
+  Grid fleetGrid1, fleetGrid2;
+  initializeGrid(&fleetGrid1);
+  initializeGrid(&fleetGrid2);
+
+  receiveGridFromClient(ffs.fd_fifo_client_1_read, &fleetGrid1);
+  receiveGridFromClient(ffs.fd_fifo_client_2_read, &fleetGrid2);
+ 
+
+  //prijatie flotil od hracov
+  receiveFleetParallel(&ffs, &fleetGrid1, &fleetGrid2);
+
+  game(&ffs, &fleetGrid1, &fleetGrid2);
 
   // int num;
   // while (1) {

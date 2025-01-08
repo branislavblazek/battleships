@@ -9,7 +9,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <string.h>
-
+/*
 void testShooting(Player* player, Grid* trackingGrid) {
     int r, s;
 
@@ -39,20 +39,20 @@ void testShooting(Player* player, Grid* trackingGrid) {
         printf("Invalid shot! You've already shot here.\n");
     }
 }
+*/
+ int main(int argc, char* argv[]) {
+   if (argc == 2 && strcmp(argv[1], "server") == 0) {
+     run_server();
+    } else {
+      run_client();
+      wait(NULL);
+   }
 
-// int main(int argc, char* argv[]) {
-//    if (argc == 2 && strcmp(argv[1], "server") == 0) {
-//      run_server();
-//    } else {
-//      run_client();
-//      wait(NULL);
-//   }
-
-//    return 0;
-// }
+    return 0;
+ }
 
 
-
+/*
 int main() {
     // Inicializácia hráča
     Player player;
@@ -80,3 +80,4 @@ int main() {
 
     return 0;
 }
+*/

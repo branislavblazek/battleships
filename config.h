@@ -2,10 +2,11 @@
 #define CONFIG_H
 
 #define BUFFER_SIZE 16
+#define BUFFER_SIZE_GRID 500
 
-#define PWD "/Users/branislav/Documents/Code/FRI/battleships"
+//#define PWD "/Users/branislav/Documents/Code/FRI/battleships"
 //#define PWD "/home/blazek10/battleships"
-//#define PWD "/home/adka tu si nastav cestu"
+#define PWD "/home/adieediee/battleships/battleships"
 
 #define PATH_CLIENT_1_SERVER "/PC_PIPE_CLIENT_1_SERVER"
 #define PATH_CLIENT_2_SERVER "/PC_PIPE_CLIENT_2_SERVER"
