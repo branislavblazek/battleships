@@ -1,6 +1,9 @@
+#include "player.h"
+
 #include <string.h>
 #include <stdio.h>
-#include "player.h"
+#include <stdlib.h>
+#include <time.h>
 
 // Inicializácia hráča
 void initializePlayer(Player* player, const char* name) {
@@ -8,8 +11,7 @@ void initializePlayer(Player* player, const char* name) {
     player->name[sizeof(player->name) - 1] = '\0';
     initializeGrid(&player->fleetGrid);
     initializeGrid(&player->trackingGrid);
-    player->score = 0;
-    
+    player->score = 0;   
 }
 
 // Výpis hráčovej flotily
@@ -33,10 +35,6 @@ int shoot(Grid* opponentGrid, Grid* trackingGrid, int x, int y) {
     }
     return -1; // Už strelené políčko
 }
-
-#include "player.h"
-#include <stdlib.h>
-#include <time.h>
 
 void generateRandomFleet(Grid* grid) {
     srand(time(NULL)); 

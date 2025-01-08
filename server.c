@@ -1,3 +1,4 @@
+#include "server.h"
 #include "config.h"
 #include "pipe.h"
 #include "communication.h"
@@ -20,6 +21,12 @@ typedef struct {
   int fd_fifo_client_2_read;
   int fd_fifo_client_2_write;
 } fd_fifo_server_struct;
+
+typedef struct {
+  fd_fifo_server_struct* ffs;
+  int client_id;
+  Grid* fleetGrid;
+} FleetThreadArgs;
 
 void init() {
   pipe_init(PIPE_HANDSHAKE_CLIENT_SERVER);
@@ -81,45 +88,56 @@ void close_server_pipes(fd_fifo_server_struct *ffs) {
   pipe_close(ffs->fd_fifo_handshake_write);
 }
 
-void message_turn(fd_fifo_server_struct *ffs, int turn) {
-  char message[BUFFER_SIZE];
-  strcpy(message, "TURN");
+void messageTurn(fd_fifo_server_struct *ffs, int turn) {
+  char message[BUFFER_SIZE] = "TURN";
 
   int fd = turn == 0
     ? ffs->fd_fifo_client_1_write
     : ffs->fd_fifo_client_2_write;
   
-  send_message(fd, message);
+  sendMessage(fd, message);
 }
 
-void message_wait(fd_fifo_server_struct *ffs, int turn) {
-  char message[BUFFER_SIZE];
-  strcpy(message, "WAIT");
+void messageWait(fd_fifo_server_struct *ffs, int turn) {
+  char message[BUFFER_SIZE] = "WAIT";
   
   int fd = turn == 0
     ? ffs->fd_fifo_client_1_write
     : ffs->fd_fifo_client_2_write;
   
-  send_message(fd, message);
+  sendMessage(fd, message);
 }
 
-void message_bye_all(fd_fifo_server_struct *ffs) {
-  char message[BUFFER_SIZE];
-  strcpy(message, "BYE");
+void messageByeAll(fd_fifo_server_struct *ffs) {
+  char message[BUFFER_SIZE] = "BYE";
   
-  send_message(ffs->fd_fifo_client_1_write, message);
-  send_message(ffs->fd_fifo_client_2_write, message);
+  sendMessage(ffs->fd_fifo_client_1_write, message);
+  sendMessage(ffs->fd_fifo_client_2_write, message);
 }
 
-void message_bye(fd_fifo_server_struct *ffs, int turn) {
-  char message[BUFFER_SIZE];
-  strcpy(message, "BYE");
+void messageBye(fd_fifo_server_struct *ffs, int turn) {
+  char message[BUFFER_SIZE] = "BYE";
   
   int fd = turn == 0
     ? ffs->fd_fifo_client_1_write
     : ffs->fd_fifo_client_2_write;
   
-  send_message(fd, message);
+  sendMessage(fd, message);
+}
+
+void messageTurnData(fd_fifo_server_struct *ffs, int turn, char *data) {
+  int fd = turn == 0
+    ? ffs->fd_fifo_client_1_write
+    : ffs->fd_fifo_client_2_write;
+  
+  sendMessage(fd, data);
+}
+
+void messageStartAll(fd_fifo_server_struct *ffs) {
+  char message[BUFFER_SIZE] = "START";
+
+  sendMessage(ffs->fd_fifo_client_1_write, message);
+  sendMessage(ffs->fd_fifo_client_2_write, message);
 }
 
 int read_turn(fd_fifo_server_struct *ffs, int turn, char *coords) {
@@ -129,7 +147,7 @@ int read_turn(fd_fifo_server_struct *ffs, int turn, char *coords) {
     ? ffs->fd_fifo_client_1_read
     : ffs->fd_fifo_client_2_read;
 
-  int ok = read_message(fd, buffer);
+  int ok = readMessage(fd, buffer);
 
   if (ok == 1) { // disconnected
     return -1;
@@ -138,19 +156,10 @@ int read_turn(fd_fifo_server_struct *ffs, int turn, char *coords) {
   if (buffer[0] == '\0') {
     return 0;
   }
-  
    
   strncpy(coords, buffer, 2);
   coords[2] = '\0';
   return 1;
-}
-
-void message_turn_data(fd_fifo_server_struct *ffs, int turn, char *data) {
-  int fd = turn == 0
-    ? ffs->fd_fifo_client_1_write
-    : ffs->fd_fifo_client_2_write;
-  
-  send_message(fd, data);
 }
 
 void game_server(fd_fifo_server_struct *ffs, Grid *fleetGrid1, Grid *fleetGrid2) {
@@ -163,14 +172,14 @@ void game_server(fd_fifo_server_struct *ffs, Grid *fleetGrid1, Grid *fleetGrid2)
   int attemps= 0;
 
   while (attemps < MAX_ATTEMPS) {
-    message_turn(ffs, turn);
-    message_wait(ffs, 1 - turn);
+    messageTurn(ffs, turn);
+    messageWait(ffs, 1 - turn);
 
     int ok = read_turn(ffs, turn, coords);
     if (ok == 0) {
       continue;
     } else if (ok == -1) {
-      message_bye(ffs, 1 - turn);
+      messageBye(ffs, 1 - turn);
       smooth_run = 0;
       puts("Exit due to client disconnected.");
       break;
@@ -184,10 +193,10 @@ void game_server(fd_fifo_server_struct *ffs, Grid *fleetGrid1, Grid *fleetGrid2)
     target_message[6] = '\0';
 
     target_message[5] = 'M';
-    message_turn_data(ffs, turn, target_message);
+    messageTurnData(ffs, turn, target_message);
 
     target_message[5] = 'E';
-    message_turn_data(ffs, 1 - turn, target_message);
+    messageTurnData(ffs, 1 - turn, target_message);
 
     usleep(1000);
 
@@ -195,97 +204,78 @@ void game_server(fd_fifo_server_struct *ffs, Grid *fleetGrid1, Grid *fleetGrid2)
     attemps++;
   }
 
-  if (smooth_run) message_bye_all(ffs);
+  if (smooth_run) messageByeAll(ffs);
 }
-
-
-#include <pthread.h>
-#include "server.h"
-
-typedef struct {
-    fd_fifo_server_struct* ffs;
-    int client_id;
-    Grid* fleetGrid;
-} FleetThreadArgs;
-
 
 void receiveFleetParallel(fd_fifo_server_struct* ffs, Grid* grid1, Grid* grid2) {
-    printf("starting receiveFleetParallel");
-    pthread_t thread1, thread2;
-    FleetThreadArgs args1 = {ffs, 1, grid1};
-    FleetThreadArgs args2 = {ffs, 2, grid2};
+  printf("starting receiveFleetParallel");
 
-    // dve paralelne vlakna na zvolenie flotily
-    pthread_create(&thread1, NULL, receiveFleetThread, &args1);
-    pthread_create(&thread2, NULL, receiveFleetThread, &args2);
+  pthread_t thread1, thread2;
+  FleetThreadArgs args1 = { ffs, 1, grid1 };
+  FleetThreadArgs args2 = { ffs, 2, grid2 };
 
-    // synchornizacia vlakien
-    pthread_join(thread1, NULL);
-    printf("Fleet for Client 1 received successfully.\n");
-    pthread_join(thread2, NULL);
-    printf("Fleet for Client 2 received successfully.\n");
-    
-    printf("Both fleets have been received.\n");
-}
+  // dve paralelne vlakna na zvolenie flotily
+  pthread_create(&thread1, NULL, receiveFleetThread, &args1);
+  pthread_create(&thread2, NULL, receiveFleetThread, &args2);
 
-void notifyClientsToStart(fd_fifo_server_struct *ffs) {
-    char message[BUFFER_SIZE] = "START";
-    send_message(ffs->fd_fifo_client_1_write, message);
-    send_message(ffs->fd_fifo_client_2_write, message);
+  // synchornizacia vlakien
+  pthread_join(thread1, NULL);
+  printf("Fleet for Client 1 received successfully.\n");
+  pthread_join(thread2, NULL);
+  printf("Fleet for Client 2 received successfully.\n");
+  
+  printf("Both fleets have been received.\n");
 }
 
 void* receiveFleetThread(void* args) {
-    FleetThreadArgs* fleetArgs = (FleetThreadArgs*)args;
-    char buffer[BUFFER_SIZE_GRID];
-    int fd_read = (fleetArgs->client_id == 1)
-        ? fleetArgs->ffs->fd_fifo_client_1_read
-        : fleetArgs->ffs->fd_fifo_client_2_read;
-    int fd_write = (fleetArgs->client_id == 1)
-        ? fleetArgs->ffs->fd_fifo_client_1_write
-        : fleetArgs->ffs->fd_fifo_client_2_write;
+  FleetThreadArgs* fleetArgs = (FleetThreadArgs*)args;
+  char buffer[BUFFER_SIZE_GRID];
+  
+  int fd_read = (fleetArgs->client_id == 1)
+    ? fleetArgs->ffs->fd_fifo_client_1_read
+    : fleetArgs->ffs->fd_fifo_client_2_read;
+  int fd_write = (fleetArgs->client_id == 1)
+    ? fleetArgs->ffs->fd_fifo_client_1_write
+    : fleetArgs->ffs->fd_fifo_client_2_write;
 
-    printf("Receiving fleet for Client %d...\n", fleetArgs->client_id);
+  printf("Receiving fleet for Client %d...\n", fleetArgs->client_id);
 
-    // precita cely buffer
-    read(fd_read, buffer, sizeof(buffer));
-    printf("Received fleet: %s\n", buffer);
+  // precita cely buffer
+  read(fd_read, buffer, sizeof(buffer));
+  printf("Received fleet: %s\n", buffer);
 
-    // rozbali lode z bufferu
-    int x, y, isVertical, size;
-    char* token = strtok(buffer, " ");
-    while (token != NULL) {
-        x = atoi(token);
-        token = strtok(NULL, " ");
-        y = atoi(token);
-        token = strtok(NULL, " ");
-        isVertical = atoi(token);
-        token = strtok(NULL, " ");
-        size = atoi(token);
-        token = strtok(NULL, " ");
+  // rozbali lode z bufferu
+  int x, y, isVertical, size;
+  char* token = strtok(buffer, " ");
+  
+  while (token != NULL) {
+      x = atoi(token);
+      token = strtok(NULL, " ");
+      y = atoi(token);
+      token = strtok(NULL, " ");
+      isVertical = atoi(token);
+      token = strtok(NULL, " ");
+      size = atoi(token);
+      token = strtok(NULL, " ");
 
-        // validuje a prida lod
-        
-        int shipPlaced = placeShip(fleetArgs->fleetGrid, x, y, size, isVertical);
-        if(shipPlaced) {
-          //TODO vymazat
-        } else {
-            char message[BUFFER_SIZE];
-            strcpy(message, "INVALID");
-            send_message(fd_write, message);
-            printf("Invalid fleet received from Client %d.\n", fleetArgs->client_id);
-            return NULL;
-        }
-    }
-    printGrid(fleetArgs->fleetGrid);
+      // validuje a prida lod
+      
+      int shipPlaced = placeShip(fleetArgs->fleetGrid, x, y, size, isVertical);
+      if(shipPlaced) {
+        //TODO vymazat
+      } else {
+          char message[BUFFER_SIZE];
+          strcpy(message, "INVALID");
+          sendMessage(fd_write, message);
+          printf("Invalid fleet received from Client %d.\n", fleetArgs->client_id);
+          return NULL;
+      }
+  }
+  
+  printGrid(fleetArgs->fleetGrid);
 
-    // ak vsetko prebehlo v poriadku 
-    //TODO klinet z nejakeho dovodu prijme iba ""
-    printf("Fleet received for Client %d.\n", fleetArgs->client_id);
-    char message[BUFFER_SIZE];
-    strcpy(message, "OK");
-    send_message(fd_write, message);
-    printf("Sending OK to Client %d.\n", fleetArgs->client_id);
-    return NULL;
+  char message[BUFFER_SIZE] = "FLEET_OK";
+  sendMessage(fd_write, message);
 }
 
 void run_server() {
@@ -307,7 +297,7 @@ void run_server() {
   connect_clients(&ffs);
 
  //posle hracom spravu, ze mozu zacat vytvarat flotilu
-  notifyClientsToStart(&ffs);
+  messageStartAll(&ffs);
 
   //vytvorenie flotil pre server
   Grid fleetGrid1, fleetGrid2;

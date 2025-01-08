@@ -1,9 +1,6 @@
 #include "grid.h"
 #include <stdio.h>
 
-
-
-
 void initializeGrid(Grid* grid) {
     for (int i = 0; i < GRID_SIZE; i++) {
         for (int j = 0; j < GRID_SIZE; j++) {
@@ -15,7 +12,6 @@ void initializeGrid(Grid* grid) {
 }
 
 int isPlacementValid(Grid* grid, int startX, int startY, int size, int isVertical) {
-
     for (int i = 0; i < size; i++) {
         int x = startX + (isVertical ? i : 0);
         int y = startY + (isVertical ? 0 : i);
@@ -26,8 +22,6 @@ int isPlacementValid(Grid* grid, int startX, int startY, int size, int isVertica
     }
     return 1;
 }
-
-#include <stdio.h>
 
 // Definície farieb pomocou ANSI escape sekvencií
 #define RESET "\033[0m"
