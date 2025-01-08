@@ -65,10 +65,105 @@ int placeShip(Grid* grid, int startR, int startC,int size, int isVertical) {
             int s = ship.startS + (ship.isVertical ? 0 : i);
             grid->cells[r][s] = SHIP;
         }
-        printGrid(grid);
+        
         return 1;
     }
     return 0;
-    
-    
 }
+
+void printGridsSideBySide(Grid* trackingGrid, Grid* userGrid) {
+    // Hlavičky stĺpcov
+    printf("   ");
+    for (int j = 0; j < GRID_SIZE; j++) {
+        printf(YELLOW "[%d]" RESET, j + 1);
+    }
+    printf("      ");
+    for (int j = 0; j < GRID_SIZE; j++) {
+        printf(YELLOW "[%d]" RESET, j + 1);
+    }
+    printf("\n");
+
+    // Riadky mriežky
+    for (int i = 0; i < GRID_SIZE; i++) {
+        // Riadková hlavička pre trackingGrid
+        printf(YELLOW "[%c]" RESET, 'A' + i);
+
+        // Zobrazujeme trackingGrid
+        for (int j = 0; j < GRID_SIZE; j++) {
+            char* cellColor = RESET;
+            char cellSymbol;
+
+            switch (trackingGrid->cells[i][j]) {
+                case EMPTY:
+                    cellSymbol = '~';
+                    cellColor = BLUE; // Prázdne pole
+                    break;
+                case HIT:
+                    cellSymbol = 'X';
+                    cellColor = RED; // Zásah
+                    break;
+                case MISS:
+                    cellSymbol = 'O';
+                    cellColor = CYAN; // Minul cieľ
+                    break;
+                default:
+                    cellSymbol = '?';
+                    break;
+            }
+            printf("%s[%c]" RESET, cellColor, cellSymbol);
+        }
+
+        // Medzera medzi mriežkami
+        printf("      ");
+
+        // Riadková hlavička pre userGrid
+        printf(YELLOW "[%c]" RESET, 'A' + i);
+
+        // Zobrazujeme userGrid
+        for (int j = 0; j < GRID_SIZE; j++) {
+            char* cellColor = RESET;
+            char cellSymbol;
+
+            switch (userGrid->cells[i][j]) {
+                case EMPTY:
+                    cellSymbol = '~';
+                    cellColor = BLUE; // Prázdne pole
+                    break;
+                case SHIP:
+                    cellSymbol = '#';
+                    cellColor = GREEN; // Loď
+                    break;
+                case HIT:
+                    cellSymbol = 'X';
+                    cellColor = RED; // Zásah
+                    break;
+                case MISS:
+                    cellSymbol = 'O';
+                    cellColor = CYAN; // Minul cieľ
+                    break;
+                default:
+                    cellSymbol = '?';
+                    break;
+            }
+            printf("%s[%c]" RESET, cellColor, cellSymbol);
+        }
+
+        // Ukončenie riadku
+        printf("\n");
+    }
+
+    // Tlač indikátorov
+    printf("\n" GREEN "Tracking Grid (Enemy):\n" RESET);
+    printf(CYAN "~ = Untouched\n" RESET);
+    printf(RED "X = Hit\n" RESET);
+    printf(CYAN "O = Miss\n" RESET);
+
+    printf("\n" GREEN "Your Fleet:\n" RESET);
+    printf(GREEN "Carrier [5]\n" RESET);
+    printf(GREEN "Battleship [4]\n" RESET);
+    printf(GREEN "Destroyer [3]\n" RESET);
+    printf(GREEN "Submarine [3]\n" RESET);
+    printf(GREEN "PatrolBoat [2]\n" RESET);
+}
+
+
