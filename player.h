@@ -16,6 +16,6 @@ void initializePlayer(Player* player, const char* name);
 void printPlayerGrid(Player* player);
 int shoot(Grid* opponentGrid, Grid* trackingGrid, int r, int s);
 int placeShip(Grid* grid, int startR, int startC,int size, int isVertical);
-void generateRandomFleet(Player* player);
+void generateRandomFleet(Grid* grid);
 
 #endif // PLAYER_H

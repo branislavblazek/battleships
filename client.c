@@ -95,7 +95,7 @@ void game_client(fd_fifo_client_struct *ffc) {
   int isStillWaiting = 0;
 
   while (1) {
-    int ok = read_message(ffc->fd_fifo_server_read, buffer);
+    int ok = readMessage(ffc->fd_fifo_server_read, buffer);
 
     if (ok == 1) { // disconnected
       puts("Exit due to server disconnected.");
@@ -114,7 +114,7 @@ void game_client(fd_fifo_client_struct *ffc) {
     if (isMyTurn) {
       printf("Enter coordinates for attack: ");
       scanf("%s", coordsUser);
-      send_message(ffc->fd_fifo_server_write, coordsUser);
+      sendMessage(ffc->fd_fifo_server_write, coordsUser);
 
     } else if (isWaiting && !isStillWaiting) {
       isStillWaiting = 1;
@@ -218,158 +218,154 @@ void drawGrids(Grid* trackingGrid, Grid* playerGrid) {
      printf(GREEN "                       PatrolBoat [2]\n" RESET);
 }
 
-
-
-
 void game(fd_fifo_client_struct *ffc, Grid* trackingGrid, Grid* playerGrid) {
-    char buffer[BUFFER_SIZE];
-    char enemyCoordsPrefix[3];
-    char enemyCoordsData[3];
-    int isStillWaiting = 0;
+  char buffer[BUFFER_SIZE];
+  char enemyCoordsPrefix[3];
+  char enemyCoordsData[3];
+  int isStillWaiting = 0;
 
-    while (1) {
-        read_message(ffc->fd_fifo_server_read, buffer);
+  while (1) {
+    readMessage(ffc->fd_fifo_server_read, buffer);
 
-        int isMyTurn = strcmp(buffer, "TURN") == 0;
-        int isWaiting = strcmp(buffer, "WAIT") == 0 || buffer[0] == '\0';
-        int isExit = strcmp(buffer, "BYE") == 0;
-        int isPossibleEnemyCoords = strlen(buffer) == 4;
+    int isMyTurn = strcmp(buffer, "TURN") == 0;
+    int isWaiting = strcmp(buffer, "WAIT") == 0 || buffer[0] == '\0';
+    int isExit = strcmp(buffer, "BYE") == 0;
+    int isPossibleEnemyCoords = strlen(buffer) == 4;
 
-        if (!isWaiting) {
-            isStillWaiting = 0;
-        }
-
-        if (isMyTurn) {
-            char coords[BUFFER_SIZE];
-            drawGrids(trackingGrid, playerGrid);
-            printf("\nEnter coordinates for attack: ");
-            scanf("%s", coords);
-            send_message(ffc->fd_fifo_server_write, coords);
-        } else if (isWaiting) {
-            if (!isStillWaiting) {
-                isStillWaiting = 1;
-                drawGrids(trackingGrid, playerGrid);
-                printf("\nWait for enemy...\n");
-            }
-        } else if (isExit) {
-            return;
-        } else if (isPossibleEnemyCoords) {
-            strncpy(enemyCoordsPrefix, buffer, 2);
-
-            enemyCoordsPrefix[2] = '\0';
-            if (strcmp(enemyCoordsPrefix, "EN") == 0) {
-                enemyCoordsData[0] = buffer[2];
-                enemyCoordsData[1] = buffer[3];
-                enemyCoordsData[2] = '\0';
-                printf("Enemy's coords: %s\n", enemyCoordsData);
-            } 
-        }
+    if (!isWaiting) {
+      isStillWaiting = 0;
     }
+
+    if (isMyTurn) {
+      char coords[BUFFER_SIZE];
+      drawGrids(trackingGrid, playerGrid);
+      printf("\nEnter coordinates for attack: ");
+      scanf("%s", coords);
+      sendMessage(ffc->fd_fifo_server_write, coords);
+    } else if (isWaiting) {
+      if (!isStillWaiting) {
+        isStillWaiting = 1;
+        drawGrids(trackingGrid, playerGrid);
+        printf("\nWait for enemy...\n");
+      }
+    } else if (isExit) {
+      return;
+    } else if (isPossibleEnemyCoords) {
+      strncpy(enemyCoordsPrefix, buffer, 2);
+
+      enemyCoordsPrefix[2] = '\0';
+      if (strcmp(enemyCoordsPrefix, "EN") == 0) {
+        enemyCoordsData[0] = buffer[2];
+        enemyCoordsData[1] = buffer[3];
+        enemyCoordsData[2] = '\0';
+        printf("Enemy's coords: %s\n", enemyCoordsData);
+      } 
+    }
+  }
 }
 
 void createAndSendFleet(int fd_read, int fd_write, Player* player) {
-   //int shipSizes[] = {4, 3, 3, 2, 2, 2, 1, 1, 1, 1}; // Veľkosti lodí
-    int shipSizes[] = {4, 3, 3};
-    int numShips = sizeof(shipSizes) / sizeof(shipSizes[0]);
+  //int shipSizes[] = {4, 3, 3, 2, 2, 2, 1, 1, 1, 1}; // Veľkosti lodí
+  int shipSizes[] = {4};
+  int shipsCount = sizeof(shipSizes) / sizeof(shipSizes[0]);
 
-    printf("Create your fleet:\n");
+  printf("Create your fleet:\n");
 
-    for (int i = 0; i < numShips; i++) {
-        char input[BUFFER_SIZE];
-        int x, y, isVertical;
+  for (int i = 0; i < shipsCount; i++) {
+      char input[BUFFER_SIZE];
+      int x, y, isVertical;
 
-        while (1) {
-            printf("Place ship of size %d (enter position e.g., A0 and 1 for vertical or 0 for horizontal): ", shipSizes[i]);
-            scanf("%s %d", input, &isVertical);
-            if (isVertical != 1 && isVertical != 0) {
-              printf("Invalid input for vertical/horizontal. Choose 1 for vertical or 0 for horizontal .\n");
+      while (1) {
+          printf("Place ship of size %d (enter position e.g., A0 and 1 for vertical or 0 for horizontal): ", shipSizes[i]);
+          scanf("%s %d", input, &isVertical);
+          if (isVertical != 1 && isVertical != 0) {
+            printf("Invalid input for vertical/horizontal. Choose 1 for vertical or 0 for horizontal .\n");
+            continue;
+          }
+
+          // Prevedieme riadok (A-J) na index (0-9)
+          if (input[0] >= 'A' && input[0] <= 'J') {
+              x = input[0] - 'A'; // A -> 0, B -> 1, ..., J -> 9
+          } else if (input[0] >= 'a' && input[0] <= 'j') {
+              x = input[0] - 'a'; // a -> 0, b -> 1, ..., j -> 9
+          } else {
+              printf("Invalid row. Please enter a letter between A-J.\n");
               continue;
-            }
+          }
 
-            // Prevedieme riadok (A-J) na index (0-9)
-            if (input[0] >= 'A' && input[0] <= 'J') {
-                x = input[0] - 'A'; // A -> 0, B -> 1, ..., J -> 9
-            } else if (input[0] >= 'a' && input[0] <= 'j') {
-                x = input[0] - 'a'; // a -> 0, b -> 1, ..., j -> 9
-            } else {
-                printf("Invalid row. Please enter a letter between A-J.\n");
-                continue;
-            }
+          // Extrahujeme číselný stĺpec
+          if (input[1] >= '0' && input[1] <= '9') {
+              y = input[1] - '0'; // '0' -> 0, '1' -> 1, ..., '9' -> 9
+          } else {
+              printf("Invalid column. Please enter a number between 0-9.\n");
+              continue;
+          }
 
-            // Extrahujeme číselný stĺpec
-            if (input[1] >= '0' && input[1] <= '9') {
-                y = input[1] - '0'; // '0' -> 0, '1' -> 1, ..., '9' -> 9
-            } else {
-                printf("Invalid column. Please enter a number between 0-9.\n");
-                continue;
-            }
+          if (placeShip(&(player->fleetGrid), x, y, shipSizes[i], isVertical) == 1) {
+              printGrid(&(player->fleetGrid));
+              printf("Ship placed successfully.\n");
+              break;
+          }
+          printf("Invalid placement. Try again.\n");
+          //TODO nejaky problem nastava tu.
+          // Hra funguje v pohode pokial vsetky vstupy pouzivatel zada spravne. 
+          // Ak nie a objavi sa sprava Invalid placement, nespusti sa TURN
+      }
+  }
+  char buffer[BUFFER_SIZE_GRID];
 
-            if (placeShip(&(player->fleetGrid), x, y, shipSizes[i], isVertical) == 1) {
-                printGrid(&(player->fleetGrid));
-                printf("Ship placed successfully.\n");
-                break;
-            }
-            printf("Invalid placement. Try again.\n");
-            //TODO nejaky problem nastava tu.
-            // Hra funguje v pohode pokial vsetky vstupy pouzivatel zada spravne. 
-            // Ak nie a objavi sa sprava Invalid placement, nespusti sa TURN
-        }
-    }
-    char buffer[BUFFER_SIZE_GRID];
-    int bufferSize;
+  // serializacia flotily
+  serializeFleet(player, buffer, shipsCount);
 
-    // serializacia flotily
-    serializeFleet(player, buffer, &bufferSize);
+  // odoslanie flotily serveru
+  write(fd_write, buffer, BUFFER_SIZE_GRID);
 
-    // odoslanie flotily serveru
-    write(fd_write, buffer, bufferSize);
+  // potvrdenie od servera
+  char response[BUFFER_SIZE];
+  int attempts = 0;
 
-    // potvrdenie od servera
-   
-    char response[BUFFER_SIZE];
-    read(fd_read, response, BUFFER_SIZE);
-      printf("Received response from server: %s\n", response);
-    if (strcmp(response, "OK") == 0) {
+  while (attempts < 3) {
+    readMessage(fd_read, response);
+    
+    if (strcmp(response, "FLEET_OK") == 0) {
       printf("Server confirmed fleet reception.\n");
-    } else {
-      //TODO aj po uspesnom prijati flotily pride klientovi namiesto "OK" sprava "".
-      //printf("Server reported an issue with the fleet. Please retry.\n");
+      break;
     }
 
-   
+    attempts++;
+  }
+    
+  if (attempts == 3) {
+    printf("Server reported an issue with the fleet. Please retry.\n");
+  }  
 }
 
+void serializeFleet(Player* player, char* buffer, int shipsCount) {
+  int index = 0;
 
-void serializeFleet(Player* player, char* buffer, int* bufferSize) {
-    int index = 0;
-    int shipSizes[] = {4, 3, 3};
-    int numShips = sizeof(shipSizes) / sizeof(shipSizes[0]);
+  // serveru sa odosielaju iba lode
+  for (int i = 0; i < shipsCount; i++) {
+    int x = player->fleetGrid.ships[i].startR;
+    int y = player->fleetGrid.ships[i].startS;
+    int isVertical = player->fleetGrid.ships[i].isVertical;
+    int size = player->fleetGrid.ships[i].size;
 
-    // serveru sa odosielaju iba lode
-    for (int i = 0; i < numShips; i++) {
-        int x = player->fleetGrid.ships[i].startR;
-        int y = player->fleetGrid.ships[i].startS;
-        int isVertical = player->fleetGrid.ships[i].isVertical;
-        int size = player->fleetGrid.ships[i].size;
+    // pridanie lodi do bufferu
+    index += sprintf(&buffer[index], "%d %d %d %d ", x, y, isVertical, size);
+  }
 
-        // pridanie lodi do bufferu
-        index += sprintf(&buffer[index], "%d %d %d %d ", x, y, isVertical, size);
-    }
-
-    buffer[index - 1] = '\0'; // nahradenie poslednej medzery ukoncovacim znakom
-    *bufferSize = index;
-    printf("Fleet serialized: %s\n", buffer);
+  buffer[index - 1] = '\0'; // nahradenie poslednej medzery ukoncovacim znakom
 }
 
 void waitForStart(fd_fifo_client_struct *ffc) {
-    char buffer[BUFFER_SIZE];
-    while (1) {
-        read_message(ffc->fd_fifo_server_read, buffer);
-        if (strcmp(buffer, "START") == 0) {
-            printf("Both players connected. You can now set up your fleet.\n");
-            break;
-        }
+  char buffer[BUFFER_SIZE];
+  while (1) {
+    readMessage(ffc->fd_fifo_server_read, buffer);
+    if (strcmp(buffer, "START") == 0) {
+      printf("Both players connected. You can now set up your fleet.\n");
+      break;
     }
+  }
 }
 
 
@@ -400,26 +396,7 @@ void run_client() {
 
   printf("strarting game(ffc)\n");
 
-  //game(&ffc);
   game(&ffc, &(player.trackingGrid), &(player.fleetGrid));
-
-  // int num;
-  // while (1) {
-  //     printf("Zadajte číslo na odoslanie: ");
-  //     scanf("%d", &num);
-
-  //     if (write(ffc.fd_fifo_server_write, &num, sizeof(int)) == -1) {
-  //         perror("Chyba pri odoslaní čísla");
-  //         break;
-  //     }
-
-  //     if (read(ffc.fd_fifo_server_read, &num, sizeof(int)) > 0) {
-  //         printf("Prijaté číslo: %d\n", num);
-  //     } else {
-  //         printf("Spojenie so serverom prerušené.\n");
-  //         break;
-  //     }
-  // }
 
   close_client_pipes(&ffc);
 }
