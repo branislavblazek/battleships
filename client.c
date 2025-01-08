@@ -3,16 +3,14 @@
 #include "communication.h"
 #include "player.h"
 #include "client.h"
+#include "utils.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
-
-#define CLEAR_SCREEN "\033[2J" // Vymaže celú obrazovku
-#define MOVE_CURSOR(x, y) printf("\033[%d;%dH", (y), (x)) // Presunie kurzor na (x, y)
-#define RESET_COLOR "\033[0m" // Reset farby
+#include <pthread.h>
 
 typedef struct {
   int fd_fifo_handshake_read;
@@ -50,13 +48,7 @@ void close_client_pipes(fd_fifo_client_struct *ffc) {
   pipe_close(ffc->fd_fifo_handshake_read);
 }
 
-void clearScreen() {
-  printf(CLEAR_SCREEN);
-  printf("\033[H"); // Presun na začiatok
-  fflush(stdout);
-}
-
-void process_turn(char *buffer) {
+void process_turn(char *buffer, Player *player) {
   // XY1A.M
     //XY-prefix;
     //1A-coords;
@@ -64,6 +56,7 @@ void process_turn(char *buffer) {
     //M/E-me/enemy
   char coordsPrefix[3];
   char coordsData[3];
+  int x, y, attack;
 
   strncpy(coordsPrefix, buffer, 2);
   coordsPrefix[2] = '\0';
@@ -71,27 +64,36 @@ void process_turn(char *buffer) {
     coordsData[0] = buffer[2];
     coordsData[1] = buffer[3];
     coordsData[2] = '\0';
+
+    int ok = parseInput(coordsData, &x, &y);
+    if (!ok) {
+      printf("Can't decode coords from server: %s\n", coordsData);
+      return;
+    }
+
+    printf("Recieved %s\n", buffer);
     
-    if (buffer[5] == 'M') {
-      if (buffer[4] == '.') {
-        printf("\tMy attack was not successful.\n");
-      } else {
-        printf("\tI HIT HIM!\n");
-      }
+    attack = buffer[4] == '.' ? MISS : HIT;
+    if (buffer[5] == 'E') {
+      // player->fleetGrid.cells[x][y] = attack;
     } else {
-      if (buffer[4] == '.') {
-        printf("\tEnemy didn't shoot me! haha!.\n");
-      } else {
-        printf("\tOU NOU!\n");
-      }
+      // player->trackingGrid.cells[x][y] = attack;
     }
   }
 }
 
-void game_client(fd_fifo_client_struct *ffc) {
-  char buffer[BUFFER_SIZE];
-  char coordsUser[BUFFER_SIZE];
+void* threadRendering(void* arg) {
+  Player *player = (const Player *)arg;
 
+  printDoubleGrid(&player->trackingGrid, &player->fleetGrid);
+
+  return NULL;
+}
+
+void game(fd_fifo_client_struct *ffc, Player *player) {
+  pthread_t render_thread;
+  char buffer[BUFFER_SIZE], coordsUser[BUFFER_SIZE];
+  char enemyCoordsPrefix[3], enemyCoordsData[3];
   int isStillWaiting = 0;
 
   while (1) {
@@ -106,211 +108,63 @@ void game_client(fd_fifo_client_struct *ffc) {
     int isWaiting = strcmp(buffer, "WAIT") == 0 || buffer[0] == '\0';
     int isExit = strcmp(buffer, "BYE") == 0;
     int isPossibleCoords = strlen(buffer) == 6;
+      printf("test 2 %d\n", &player->fleetGrid.cells[0][0]);
 
     if (!isWaiting) {
       isStillWaiting = 0;
     }
 
     if (isMyTurn) {
+      // ATTACK
+      // pthread_join(render_thread, NULL);
       printf("Enter coordinates for attack: ");
       scanf("%s", coordsUser);
       sendMessage(ffc->fd_fifo_server_write, coordsUser);
-
     } else if (isWaiting && !isStillWaiting) {
+      // WAITING
       isStillWaiting = 1;
-      //printf("Wait for enemy...\n");
-
     } else if (isPossibleCoords) {
-      process_turn(buffer);
-
+      // DATA COORDS
+      process_turn(buffer, player);
+      printf("test %d\n", &player->fleetGrid.cells[0][0]);
+      pthread_create(&render_thread, NULL, threadRendering, (void *)&player);
+      pthread_detach(render_thread);
     } else if (isExit) {
       return;
-
-    }
-  }
-}
-
-void drawGrids(Grid* trackingGrid, Grid* playerGrid) {
-    clearScreen(); // Vyčistí obrazovku
-
-    // Tlač hlavičky
-    printf("   " YELLOW "Tracking Grid" RESET "                         " YELLOW "Your Grid\n" RESET);
-    printf("   ");
-    for (int j = 0; j < 10; j++) printf(YELLOW "[%d]" RESET, j + 1); // Číslovanie stĺpcov
-    printf("         ");
-    for (int j = 0; j < 10; j++) printf(YELLOW "[%d]" RESET, j + 1);
-    printf("\n");
-
-    for (int i = 0; i < 10; i++) {
-        // Tracking Grid
-        printf(YELLOW "[%c]" RESET, 'A' + i); // Označenie riadkov (A-J)
-        for (int j = 0; j < 10; j++) {
-            char* cellColor = RESET;
-            char cellSymbol = '~'; // Predvolený symbol
-
-            switch (trackingGrid->cells[i][j]) {
-                case EMPTY:
-                    cellSymbol = '~';
-                    cellColor = BLUE; // Prázdna voda je modrá
-                    break;
-                case HIT:
-                    cellSymbol = 'X';
-                    cellColor = RED; // Zásahy sú červené
-                    break;
-                case MISS:
-                    cellSymbol = 'O';
-                    cellColor = CYAN; // Chyby (miss) sú svetlomodré
-                    break;
-                default:
-                    break;
-            }
-
-            printf("%s[%c]" RESET, cellColor, cellSymbol);
-        }
-
-        // Medzera medzi gridmi
-        printf("       ");
-
-        // Player Grid
-        printf(YELLOW "[%c]" RESET, 'A' + i); // Označenie riadkov (A-J)
-        for (int j = 0; j < 10; j++) {
-            char* cellColor = RESET;
-            char cellSymbol = '~'; // Predvolený symbol
-
-            switch (playerGrid->cells[i][j]) {
-                case EMPTY:
-                    cellSymbol = '~';
-                    cellColor = BLUE; // Prázdna voda je modrá
-                    break;
-                case SHIP:
-                    cellSymbol = '#';
-                    cellColor = GREEN; // Lode sú zelené
-                    break;
-                case HIT:
-                    cellSymbol = 'X';
-                    cellColor = RED; // Zásahy sú červené
-                    break;
-                case MISS:
-                    cellSymbol = 'O';
-                    cellColor = CYAN; // Chyby (miss) sú svetlomodré
-                    break;
-                default:
-                    break;
-            }
-
-            printf("%s[%c]" RESET, cellColor, cellSymbol);
-        }
-        printf("\n");
-    }
-
-    // Tlač indikátorov lodí (voliteľné)
-    printf("\n" GREEN "Indicator:" RESET);
-    printf(GREEN "                           Indicator:\n" RESET);
-    printf(GREEN "Carrier [5]" RESET);
-    printf(GREEN "                          Carrier [5]\n" RESET);
-    printf(GREEN "Battleship [4]" RESET);
-    printf(GREEN "                       Battleship [4]\n" RESET);
-    printf(GREEN "Destroyer [3]" RESET);
-    printf(GREEN "                        Destroyer [3]\n" RESET);
-    printf(GREEN "Submarine [3]" RESET);
-    printf(GREEN "                        Submarine [3]\n" RESET);
-    printf(GREEN "PatrolBoat [2]" RESET);
-     printf(GREEN "                       PatrolBoat [2]\n" RESET);
-}
-
-void game(fd_fifo_client_struct *ffc, Grid* trackingGrid, Grid* playerGrid) {
-  char buffer[BUFFER_SIZE];
-  char enemyCoordsPrefix[3];
-  char enemyCoordsData[3];
-  int isStillWaiting = 0;
-
-  while (1) {
-    readMessage(ffc->fd_fifo_server_read, buffer);
-
-    int isMyTurn = strcmp(buffer, "TURN") == 0;
-    int isWaiting = strcmp(buffer, "WAIT") == 0 || buffer[0] == '\0';
-    int isExit = strcmp(buffer, "BYE") == 0;
-    int isPossibleEnemyCoords = strlen(buffer) == 4;
-
-    if (!isWaiting) {
-      isStillWaiting = 0;
-    }
-
-    if (isMyTurn) {
-      char coords[BUFFER_SIZE];
-      drawGrids(trackingGrid, playerGrid);
-      printf("\nEnter coordinates for attack: ");
-      scanf("%s", coords);
-      sendMessage(ffc->fd_fifo_server_write, coords);
-    } else if (isWaiting) {
-      if (!isStillWaiting) {
-        isStillWaiting = 1;
-        drawGrids(trackingGrid, playerGrid);
-        printf("\nWait for enemy...\n");
-      }
-    } else if (isExit) {
-      return;
-    } else if (isPossibleEnemyCoords) {
-      strncpy(enemyCoordsPrefix, buffer, 2);
-
-      enemyCoordsPrefix[2] = '\0';
-      if (strcmp(enemyCoordsPrefix, "EN") == 0) {
-        enemyCoordsData[0] = buffer[2];
-        enemyCoordsData[1] = buffer[3];
-        enemyCoordsData[2] = '\0';
-        printf("Enemy's coords: %s\n", enemyCoordsData);
-      } 
     }
   }
 }
 
 void createAndSendFleet(int fd_read, int fd_write, Player* player) {
-  //int shipSizes[] = {4, 3, 3, 2, 2, 2, 1, 1, 1, 1}; // Veľkosti lodí
-  int shipSizes[] = {4};
+  //int shipSizes[] = {4, 3, 3, 2, 2, 2, 1, 1, 1, 1};
+  int shipSizes[] = { 4 };
   int shipsCount = sizeof(shipSizes) / sizeof(shipSizes[0]);
 
   printf("Create your fleet:\n");
 
   for (int i = 0; i < shipsCount; i++) {
-      char input[BUFFER_SIZE];
-      int x, y, isVertical;
+    char input[BUFFER_SIZE];
+    int x, y, isVertical;
 
-      while (1) {
-          printf("Place ship of size %d (enter position e.g., A0 and 1 for vertical or 0 for horizontal): ", shipSizes[i]);
-          scanf("%s %d", input, &isVertical);
-          if (isVertical != 1 && isVertical != 0) {
-            printf("Invalid input for vertical/horizontal. Choose 1 for vertical or 0 for horizontal .\n");
-            continue;
-          }
-
-          // Prevedieme riadok (A-J) na index (0-9)
-          if (input[0] >= 'A' && input[0] <= 'J') {
-              x = input[0] - 'A'; // A -> 0, B -> 1, ..., J -> 9
-          } else if (input[0] >= 'a' && input[0] <= 'j') {
-              x = input[0] - 'a'; // a -> 0, b -> 1, ..., j -> 9
-          } else {
-              printf("Invalid row. Please enter a letter between A-J.\n");
-              continue;
-          }
-
-          // Extrahujeme číselný stĺpec
-          if (input[1] >= '0' && input[1] <= '9') {
-              y = input[1] - '0'; // '0' -> 0, '1' -> 1, ..., '9' -> 9
-          } else {
-              printf("Invalid column. Please enter a number between 0-9.\n");
-              continue;
-          }
-
-          if (placeShip(&(player->fleetGrid), x, y, shipSizes[i], isVertical) == 1) {
-              printGrid(&(player->fleetGrid));
-              printf("Ship placed successfully.\n");
-              break;
-          }
-          printf("Invalid placement. Try again.\n");
-          //TODO nejaky problem nastava tu.
-          // Hra funguje v pohode pokial vsetky vstupy pouzivatel zada spravne. 
-          // Ak nie a objavi sa sprava Invalid placement, nespusti sa TURN
+    while (1) {
+      printf("Place ship of size %d. Enter position (e.g., A0 0): ", shipSizes[i]);
+      scanf("%s %d", input, &isVertical);
+      if (isVertical != 1 && isVertical != 0) {
+        printf("Invalid input for vertical/horizontal. Choose 1 for vertical or 0 for horizontal .\n");
+        continue;
       }
+
+      int ok = parseInput(input, &x, &y);
+      if (!ok) continue;
+
+      if (placeShip(&(player->fleetGrid), x, y, shipSizes[i], isVertical) == 1) {
+        printGrid(&(player->fleetGrid));
+        printf("Ship placed successfully.\n");
+        break;
+      }
+
+      printf("Invalid placement. Try again.\n");
+    }
   }
   char buffer[BUFFER_SIZE_GRID];
 
@@ -368,7 +222,6 @@ void waitForStart(fd_fifo_client_struct *ffc) {
   }
 }
 
-
 void run_client() {
   fd_fifo_client_struct ffc = { -1, -1, -1, -1 };
 
@@ -394,9 +247,11 @@ void run_client() {
   // klient vytvorit flotilu a posle ju serveru
   createAndSendFleet(ffc.fd_fifo_server_read, ffc.fd_fifo_server_write, &player);
 
+  printf("test 3%d\n", player.fleetGrid.cells[0][0]);
+
   printf("strarting game(ffc)\n");
 
-  game(&ffc, &(player.trackingGrid), &(player.fleetGrid));
+  game(&ffc, &player);
 
   close_client_pipes(&ffc);
 }

@@ -2,13 +2,12 @@
 #include <stdio.h>
 
 void initializeGrid(Grid* grid) {
-    for (int i = 0; i < GRID_SIZE; i++) {
-        for (int j = 0; j < GRID_SIZE; j++) {
-            grid->cells[i][j] = EMPTY;
-        }
+  for (int i = 0; i < GRID_SIZE; i++) {
+    for (int j = 0; j < GRID_SIZE; j++) {
+      grid->cells[i][j] = EMPTY;
     }
-    grid->placedShipsCount = 0;
-    
+  }
+  grid->placedShipsCount = 0;
 }
 
 int isPlacementValid(Grid* grid, int startX, int startY, int size, int isVertical) {
@@ -23,66 +22,103 @@ int isPlacementValid(Grid* grid, int startX, int startY, int size, int isVertica
     return 1;
 }
 
-// Definície farieb pomocou ANSI escape sekvencií
-#define RESET "\033[0m"
-#define BLUE "\033[34m"
-#define GREEN "\033[32m"
-#define RED "\033[31m"
-#define YELLOW "\033[33m"
-#define CYAN "\033[36m"
-
-void printGrid(Grid* grid) {
-    // Tlač hlavičky so stĺpcovými číslami
-    printf("   ");
-    for (int j = 0; j < GRID_SIZE; j++) {
-        printf(YELLOW "[%d]" RESET, j); // Stĺpce sú číslované od 1
-    }
-    printf("\n");
-
-    // Tlač mriežky s riadkovými označeniami
-    for (int i = 0; i < GRID_SIZE; i++) {
-        printf(YELLOW "[%c]" RESET, 'A' + i); // Riadky označené písmenami
-
-        for (int j = 0; j < GRID_SIZE; j++) {
-            char* cellColor = RESET;
-            char cellSymbol;
-
-            switch (grid->cells[i][j]) {
-                case EMPTY:
-                    cellSymbol = '~';
-                    cellColor = BLUE; // Prázdna voda je modrá
-                    break;
-                case SHIP:
-                    cellSymbol = '#';
-                    cellColor = GREEN; // Lode sú zelené
-                    break;
-                case HIT:
-                    cellSymbol = 'X';
-                    cellColor = RED; // Zásahy sú červené
-                    break;
-                case MISS:
-                    cellSymbol = 'O';
-                    cellColor = CYAN; // Chyby (miss) sú svetlomodré
-                    break;
-                default:
-                    cellSymbol = '?';
-                    break;
-            }
-
-            printf("%s[%c]" RESET, cellColor, cellSymbol);
-        }
-        printf("\n");
-    }
-
-    // Tlač indikátorov lodí
-    printf("\n" GREEN "Indicator:\n" RESET);
-    printf(GREEN "Carrier [5]\n" RESET);
-    printf(GREEN "Battleship [4]\n" RESET);
-    printf(GREEN "Destroyer [3]\n" RESET);
-    printf(GREEN "Submarine [3]\n" RESET);
-    printf(GREEN "PatrolBoat [2]\n" RESET);
+void clearScreen() {
+  printf(CLEAR_SCREEN);
+  printf("\033[H");
+  fflush(stdout);
 }
 
+void static printBasicGrid(Grid* grid, int i) {
+  for (int j = 0; j < GRID_SIZE; j++) {
+    char* cellColor = RESET;
+    char cellSymbol = '~';
+    switch (grid->cells[i][j]) {
+      case EMPTY:
+        cellSymbol = '~';
+        cellColor = BLUE;
+        break;
+      case SHIP:
+        cellSymbol = '#';
+        cellColor = GREEN;
+        break;
+      case HIT:
+        cellSymbol = 'X';
+        cellColor = RED;
+        break;
+      case MISS:
+        cellSymbol = 'O';
+        cellColor = CYAN;
+        break;
+      default:
+        break;
+    }
+
+    printf("%s[%c]" RESET, cellColor, cellSymbol);
+  }
+}
+
+void printGrid(Grid* grid) {
+  printf("   ");
+
+  for (int j = 0; j < GRID_SIZE; j++) {
+    printf(YELLOW "[%d]" RESET, j);
+  }
+  printf("\n");
+
+  for (int i = 0; i < GRID_SIZE; i++) {
+    printf(YELLOW "[%c]" RESET, 'A' + i); // Riadky označené písmenami
+    printBasicGrid(grid, i);
+    printf("\n");
+  }
+
+  printf("\n" GREEN "Indicator:\n" RESET);
+  printf(GREEN "Carrier [5]\n" RESET);
+  printf(GREEN "Battleship [4]\n" RESET);
+  printf(GREEN "Destroyer [3]\n" RESET);
+  printf(GREEN "Submarine [3]\n" RESET);
+  printf(GREEN "PatrolBoat [2]\n" RESET);
+}
+
+void printDoubleGrid(Grid *grid1, Grid *grid2) {
+  clearScreen();
+
+  printf("   " YELLOW "Tracking Grid" RESET "                          " YELLOW "Your Grid\n" RESET);
+  printf("   ");
+  for (int j = 0; j < 10; j++) printf(YELLOW "[%d]" RESET, j);
+  printf("         ");
+  for (int j = 0; j < 10; j++) printf(YELLOW "[%d]" RESET, j);
+  printf("\n");
+
+  for (int i = 0; i < 10; i++) {
+    printf(YELLOW "[%c]" RESET, 'A' + i);
+
+    printBasicGrid(grid1, i);
+
+    printf("      ");
+
+    printf(YELLOW "[%c]" RESET, 'A' + i);
+
+    printBasicGrid(grid2, i);
+
+    printf("\n");
+  }
+
+  // Tlač indikátorov lodí (voliteľné)
+  printf("\n" GREEN "Indicator:" RESET);
+  printf(GREEN "                           Indicator:\n" RESET);
+  printf(GREEN "Carrier [5]" RESET);
+  printf(GREEN "                          Carrier [5]\n" RESET);
+  printf(GREEN "Battleship [4]" RESET);
+  printf(GREEN "                       Battleship [4]\n" RESET);
+  printf(GREEN "Destroyer [3]" RESET);
+  printf(GREEN "                        Destroyer [3]\n" RESET);
+  printf(GREEN "Submarine [3]" RESET);
+  printf(GREEN "                        Submarine [3]\n" RESET);
+  printf(GREEN "PatrolBoat [2]" RESET);
+  printf(GREEN "                       PatrolBoat [2]\n" RESET);  
+}
+
+// TODO: do we really needs this one?
 int isShipSunk(Grid* grid, Ship* ship) {
     for (int i = 0; i < ship->size; i++) {
         int r = ship->startR + (ship->isVertical ? i : 0);

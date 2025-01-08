@@ -1,6 +1,6 @@
 CC 			= gcc
 CFLAGS  = -Wall -Wextra -g -pthread
-SRCS 		= main.c server.c client.c pipe.c communication.c client.c grid.c player.c ship.c
+SRCS 		= main.c server.c client.c pipe.c communication.c client.c grid.c player.c ship.c utils.c
 OBJS 		= $(SRCS:.c=.o)
 TARGET 	= BattleshipsApp
 
