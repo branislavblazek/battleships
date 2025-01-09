@@ -141,4 +141,16 @@ int isFleetDestroyed(Grid* grid) {
     return 1; // Všetky lode sú zničené
 }
 
+int checkShips(Grid* grid) {
+  int shipCount = 0;
 
+  for (int i = 0; i < GRID_SIZE; i++) {
+    for (int j = 0; j < GRID_SIZE; j++) {
+      if (grid->cells[i][j] == SHIP) {
+        shipCount++;
+      }
+    }
+  }
+
+  return shipCount;
+}

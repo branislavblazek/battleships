@@ -75,15 +75,15 @@ void process_turn(char *buffer, Player *player) {
     
     attack = buffer[4] == '.' ? MISS : HIT;
     if (buffer[5] == 'E') {
-      // player->fleetGrid.cells[x][y] = attack;
+      player->fleetGrid.cells[x][y] = attack;
     } else {
-      // player->trackingGrid.cells[x][y] = attack;
+      player->trackingGrid.cells[x][y] = attack;
     }
   }
 }
 
 void* threadRendering(void* arg) {
-  Player *player = (const Player *)arg;
+  Player *player = arg;
 
   printDoubleGrid(&player->trackingGrid, &player->fleetGrid);
 
@@ -93,7 +93,6 @@ void* threadRendering(void* arg) {
 void game(fd_fifo_client_struct *ffc, Player *player) {
   pthread_t render_thread;
   char buffer[BUFFER_SIZE], coordsUser[BUFFER_SIZE];
-  char enemyCoordsPrefix[3], enemyCoordsData[3];
   int isStillWaiting = 0;
 
   while (1) {
@@ -105,10 +104,11 @@ void game(fd_fifo_client_struct *ffc, Player *player) {
     }
 
     int isMyTurn = strcmp(buffer, "TURN") == 0;
-    int isWaiting = strcmp(buffer, "WAIT") == 0 || buffer[0] == '\0';
+    int isWaiting = strcmp(buffer, "WAIT") == 0;// || buffer[0] == '\0';
+    int isWin = strcmp(buffer, "WIN") == 0;
+    int isLost = strcmp(buffer, "LOST") == 0;
     int isExit = strcmp(buffer, "BYE") == 0;
     int isPossibleCoords = strlen(buffer) == 6;
-      printf("test 2 %d\n", &player->fleetGrid.cells[0][0]);
 
     if (!isWaiting) {
       isStillWaiting = 0;
@@ -116,7 +116,7 @@ void game(fd_fifo_client_struct *ffc, Player *player) {
 
     if (isMyTurn) {
       // ATTACK
-      // pthread_join(render_thread, NULL);
+      pthread_join(render_thread, NULL);
       printf("Enter coordinates for attack: ");
       scanf("%s", coordsUser);
       sendMessage(ffc->fd_fifo_server_write, coordsUser);
@@ -126,9 +126,13 @@ void game(fd_fifo_client_struct *ffc, Player *player) {
     } else if (isPossibleCoords) {
       // DATA COORDS
       process_turn(buffer, player);
-      printf("test %d\n", &player->fleetGrid.cells[0][0]);
-      pthread_create(&render_thread, NULL, threadRendering, (void *)&player);
+      Player tempPlayer = *player;
+      pthread_create(&render_thread, NULL, threadRendering, &tempPlayer);
       pthread_detach(render_thread);
+    } else if (isWin) {
+      puts("YOU ARE WINEEER!");
+    } else if (isLost) {
+      puts("HA LOOSER!");
     } else if (isExit) {
       return;
     }
@@ -246,8 +250,6 @@ void run_client() {
 
   // klient vytvorit flotilu a posle ju serveru
   createAndSendFleet(ffc.fd_fifo_server_read, ffc.fd_fifo_server_write, &player);
-
-  printf("test 3%d\n", player.fleetGrid.cells[0][0]);
 
   printf("strarting game(ffc)\n");
 

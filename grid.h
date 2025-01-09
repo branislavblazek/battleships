@@ -38,4 +38,6 @@ int isShipSunk(Grid* grid, Ship* ship);
 
 int isFleetDestroyed(Grid* grid);
 
+int checkShips(Grid* grid);
+
 #endif // GRID_H
