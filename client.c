@@ -91,53 +91,66 @@ void* threadRendering(void* arg) {
 }
 
 void game(fd_fifo_client_struct *ffc, Player *player) {
-  pthread_t render_thread;
-  char buffer[BUFFER_SIZE], coordsUser[BUFFER_SIZE];
-  int isStillWaiting = 0;
+    pthread_t render_thread = 0; // Inicializácia vlákna
+    char buffer[BUFFER_SIZE], coordsUser[BUFFER_SIZE];
+    int isStillWaiting = 0;
 
-  while (1) {
-    int ok = readMessage(ffc->fd_fifo_server_read, buffer);
+    while (1) {
+        int ok = readMessage(ffc->fd_fifo_server_read, buffer);
 
-    if (ok == 1) { // disconnected
-      puts("Exit due to server disconnected.");
-      break;
+        if (ok == 1) { // disconnected
+            puts("Exit due to server disconnected.");
+            break;
+        }
+
+        int isMyTurn = strcmp(buffer, "TURN") == 0;
+        int isWaiting = strcmp(buffer, "WAIT") == 0;
+        int isWin = strcmp(buffer, "WIN") == 0;
+        int isLost = strcmp(buffer, "LOST") == 0;
+        int isExit = strcmp(buffer, "BYE") == 0;
+        int isPossibleCoords = strlen(buffer) == 6;
+
+        if (!isWaiting) {
+            isStillWaiting = 0;
+        }
+
+        if (isMyTurn) {
+            if (render_thread) {
+                pthread_join(render_thread, NULL); // Synchronizuj s renderovacím vláknom
+                render_thread = 0;
+            }
+
+            printf("Enter coordinates for attack: ");
+            scanf("%s", coordsUser);
+            sendMessage(ffc->fd_fifo_server_write, coordsUser);
+
+        } else if (isWaiting && !isStillWaiting) {
+            isStillWaiting = 1;
+
+        } else if (isPossibleCoords) {
+            process_turn(buffer, player);
+
+            if (render_thread) {
+                pthread_join(render_thread, NULL); // Ukonči predošlé vlákno
+            }
+
+            pthread_create(&render_thread, NULL, threadRendering, player);
+        } else if (isWin) {
+            puts("YOU ARE WINEEER!");
+            break;
+        } else if (isLost) {
+            puts("HA LOOSER!");
+            break;
+        } else if (isExit) {
+            return;
+        }
     }
 
-    int isMyTurn = strcmp(buffer, "TURN") == 0;
-    int isWaiting = strcmp(buffer, "WAIT") == 0;// || buffer[0] == '\0';
-    int isWin = strcmp(buffer, "WIN") == 0;
-    int isLost = strcmp(buffer, "LOST") == 0;
-    int isExit = strcmp(buffer, "BYE") == 0;
-    int isPossibleCoords = strlen(buffer) == 6;
-
-    if (!isWaiting) {
-      isStillWaiting = 0;
+    if (render_thread) {
+        pthread_join(render_thread, NULL); // Ukonči posledné vlákno
     }
-
-    if (isMyTurn) {
-      // ATTACK
-      pthread_join(render_thread, NULL);
-      printf("Enter coordinates for attack: ");
-      scanf("%s", coordsUser);
-      sendMessage(ffc->fd_fifo_server_write, coordsUser);
-    } else if (isWaiting && !isStillWaiting) {
-      // WAITING
-      isStillWaiting = 1;
-    } else if (isPossibleCoords) {
-      // DATA COORDS
-      process_turn(buffer, player);
-      Player tempPlayer = *player;
-      pthread_create(&render_thread, NULL, threadRendering, &tempPlayer);
-      pthread_detach(render_thread);
-    } else if (isWin) {
-      puts("YOU ARE WINEEER!");
-    } else if (isLost) {
-      puts("HA LOOSER!");
-    } else if (isExit) {
-      return;
-    }
-  }
 }
+
 
 void createAndSendFleet(int fd_read, int fd_write, Player* player) {
   //int shipSizes[] = {4, 3, 3, 2, 2, 2, 1, 1, 1, 1};
@@ -171,6 +184,7 @@ void createAndSendFleet(int fd_read, int fd_write, Player* player) {
     }
   }
   char buffer[BUFFER_SIZE_GRID];
+  memset(buffer, 0, sizeof(buffer));
 
   // serializacia flotily
   serializeFleet(player, buffer, shipsCount);

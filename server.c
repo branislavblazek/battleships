@@ -377,7 +377,7 @@ void run_server() {
 
   //TODO pridat interface hry pre pouzivatela
   game_server(&ffs, &fleetGrid1, &fleetGrid2);
-
+  printf("KONIECHRY\n");
   close_server_pipes(&ffs);
 
   destroy();
