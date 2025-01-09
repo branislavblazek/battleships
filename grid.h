@@ -32,7 +32,7 @@ int isPlacementValid(Grid* grid, int startR, int startS, int size, int isVertica
 
 void printGrid(Grid* grid);
 
-void printDoubleGrid(Grid* grid1, Grid* grid2);
+void printDoubleGrid2(Grid* grid1, Grid* grid2);
 
 int isShipSunk(Grid* grid, Ship* ship);
 

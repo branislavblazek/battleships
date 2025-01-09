@@ -342,10 +342,11 @@ void* receiveFleetThread(void* args) {
       }
   }
   
-  printGrid(fleetArgs->fleetGrid);
+  //printGrid(fleetArgs->fleetGrid); -> toto tu netreba?
 
   char message[BUFFER_SIZE] = "FLEET_OK";
   sendMessage(fd_write, message);
+  return NULL;
 }
 
 void run_server() {
