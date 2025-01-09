@@ -91,7 +91,7 @@ void* threadRendering(void* arg) {
 }
 
 void game(fd_fifo_client_struct *ffc, Player *player) {
-    pthread_t render_thread = 0; // Inicializácia vlákna
+    pthread_t render_thread = 0; // Inicializacia vlakna, bez toho to pada
     char buffer[BUFFER_SIZE], coordsUser[BUFFER_SIZE];
     int isStillWaiting = 0;
 
@@ -115,26 +115,25 @@ void game(fd_fifo_client_struct *ffc, Player *player) {
         }
 
         if (isMyTurn) {
-            if (render_thread) {
-                pthread_join(render_thread, NULL); // Synchronizuj s renderovacím vláknom
-                render_thread = 0;
-            }
-
+            //ATTACK
+            //neviem ci tu musi byt, ide aj bez toho ale nesledovala som to 
+            pthread_join(render_thread, NULL); 
+            //render_thread = 0;
             printf("Enter coordinates for attack: ");
             scanf("%s", coordsUser);
             sendMessage(ffc->fd_fifo_server_write, coordsUser);
-
         } else if (isWaiting && !isStillWaiting) {
             isStillWaiting = 1;
 
         } else if (isPossibleCoords) {
             process_turn(buffer, player);
+            //if (render_thread) {
+                //pthread_join(render_thread, NULL); // Ukonči predošlé vlákno
+            //}
+            Player tempPlayer = *player;
+            pthread_create(&render_thread, NULL, threadRendering,  &tempPlayer);
+            pthread_detach(render_thread);
 
-            if (render_thread) {
-                pthread_join(render_thread, NULL); // Ukonči predošlé vlákno
-            }
-
-            pthread_create(&render_thread, NULL, threadRendering, player);
         } else if (isWin) {
             puts("YOU ARE WINEEER!");
             break;
@@ -145,10 +144,9 @@ void game(fd_fifo_client_struct *ffc, Player *player) {
             return;
         }
     }
-
-    if (render_thread) {
-        pthread_join(render_thread, NULL); // Ukonči posledné vlákno
-    }
+    //if (render_thread) {
+       // pthread_join(render_thread, NULL); // Ukonči posledné vlákno
+    //}
 }
 
 
