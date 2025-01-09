@@ -4,6 +4,7 @@
 #include "player.h"
 #include "client.h"
 #include "utils.h"
+#include "interface.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -47,6 +48,12 @@ void close_client_pipes(fd_fifo_client_struct *ffc) {
   pipe_close(ffc->fd_fifo_handshake_write);
   pipe_close(ffc->fd_fifo_handshake_read);
 }
+
+void fixConsoleSize() {
+    // Nastav veľkosť terminálu na 40 riadkov a 100 stĺpcov
+    system("stty rows 100 cols 100");
+}
+
 
 void process_turn(char *buffer, Player *player) {
   // XY1A.M
@@ -110,6 +117,8 @@ void game(fd_fifo_client_struct *ffc, Player *player) {
         int isExit = strcmp(buffer, "BYE") == 0;
         int isPossibleCoords = strlen(buffer) == 6;
 
+        
+
         if (!isWaiting) {
             isStillWaiting = 0;
         }
@@ -133,12 +142,13 @@ void game(fd_fifo_client_struct *ffc, Player *player) {
             Player tempPlayer = *player;
             pthread_create(&render_thread, NULL, threadRendering,  &tempPlayer);
             pthread_detach(render_thread);
-
         } else if (isWin) {
             puts("YOU ARE WINEEER!");
+            printEndScreen(1);
             break;
         } else if (isLost) {
             puts("HA LOOSER!");
+            printEndScreen(0);
             break;
         } else if (isExit) {
             return;
@@ -152,11 +162,11 @@ void game(fd_fifo_client_struct *ffc, Player *player) {
 
 void createAndSendFleet(int fd_read, int fd_write, Player* player) {
   //int shipSizes[] = {4, 3, 3, 2, 2, 2, 1, 1, 1, 1};
-  int shipSizes[] = { 4 };
+  int shipSizes[] = { 1 };
   int shipsCount = sizeof(shipSizes) / sizeof(shipSizes[0]);
-
+  printCenteredGrid(&(player->fleetGrid));
   printf("Create your fleet:\n");
-
+  
   for (int i = 0; i < shipsCount; i++) {
     char input[BUFFER_SIZE];
     int x, y, isVertical;
@@ -173,7 +183,8 @@ void createAndSendFleet(int fd_read, int fd_write, Player* player) {
       if (!ok) continue;
 
       if (placeShip(&(player->fleetGrid), x, y, shipSizes[i], isVertical) == 1) {
-        printGrid(&(player->fleetGrid));
+        printCenteredGrid(&(player->fleetGrid));
+        //printGrid(&(player->fleetGrid));
         printf("Ship placed successfully.\n");
         break;
       }
@@ -239,6 +250,7 @@ void waitForStart(fd_fifo_client_struct *ffc) {
 }
 
 void run_client() {
+  fixConsoleSize();
   fd_fifo_client_struct ffc = { -1, -1, -1, -1 };
 
   open_client_handshake(&ffc);
@@ -254,17 +266,18 @@ void run_client() {
     perror("Error can't open FIFO pipelines");
     exit(1);
   }
-
+  printBanner();
+  
   waitForStart(&ffc);
   
   Player player;
   initializePlayer(&player, "PLAYER1");
-
+  chooseFleetOption();
   // klient vytvorit flotilu a posle ju serveru
   createAndSendFleet(ffc.fd_fifo_server_read, ffc.fd_fifo_server_write, &player);
-
-  printf("strarting game(ffc)\n");
-
+  
+  printf("Waiting for enemy player...\n");
+  
   game(&ffc, &player);
 
   close_client_pipes(&ffc);
