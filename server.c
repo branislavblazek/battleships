@@ -3,13 +3,14 @@
 #include "pipe.h"
 #include "communication.h"
 #include "player.h"
+#include "utils.h"
+#include "grid.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
-#include <time.h>
 #include <signal.h>
 #include <pthread.h>
 
@@ -125,6 +126,26 @@ void messageBye(fd_fifo_server_struct *ffs, int turn) {
   sendMessage(fd, message);
 }
 
+void messageWin(fd_fifo_server_struct *ffs, int turn) {
+  char message[BUFFER_SIZE] = "WIN";
+  
+  int fd = turn == 0
+    ? ffs->fd_fifo_client_1_write
+    : ffs->fd_fifo_client_2_write;
+  
+  sendMessage(fd, message);
+}
+
+void messageLost(fd_fifo_server_struct *ffs, int turn) {
+  char message[BUFFER_SIZE] = "LOST";
+  
+  int fd = turn == 0
+    ? ffs->fd_fifo_client_1_write
+    : ffs->fd_fifo_client_2_write;
+  
+  sendMessage(fd, message);
+}
+
 void messageTurnData(fd_fifo_server_struct *ffs, int turn, char *data) {
   int fd = turn == 0
     ? ffs->fd_fifo_client_1_write
@@ -162,16 +183,55 @@ int read_turn(fd_fifo_server_struct *ffs, int turn, char *coords) {
   return 1;
 }
 
+int checkHit(char* data, Grid *fleetGrid1, Grid *fleetGrid2, int client) {
+  char coordsData[3];
+  int x, y, current;
+
+  coordsData[0] = data[0];
+  coordsData[1] = data[1];
+  coordsData[2] = '\0';
+
+  int ok = parseInput(coordsData, &x, &y);
+  if (!ok) {
+    printf("Can't decode coords from server: %s\n", coordsData);
+    return 0;
+  }
+
+  if (client == 1) {
+    current = fleetGrid2->cells[x][y];
+    fleetGrid2->cells[x][y] = current == 1 ? HIT : MISS;
+    return current;
+  } else if (client == 2) {
+    current = fleetGrid1->cells[x][y];
+    fleetGrid1->cells[x][y] = current == 1 ? HIT : MISS;
+    return current;
+  }
+
+  return 0;
+}
+
+int checkWon(Grid *fleetGrid1, Grid *fleetGrid2, int wasHit) {
+  if (!wasHit) return 0;
+
+  int client1ships = checkShips(fleetGrid1);
+  int client2ships = checkShips(fleetGrid2);
+
+  if (client1ships == 0) {
+    return 2;
+  } else if (client2ships == 0) {
+    return 1;
+  }
+
+  return 0;
+}
+
 void game_server(fd_fifo_server_struct *ffs, Grid *fleetGrid1, Grid *fleetGrid2) {
   char coords[3];
   char target_message[BUFFER_SIZE];
   int turn = 0;
   int smooth_run = 1;
-  // will be removed....
-  int MAX_ATTEMPS = 6;
-  int attemps= 0;
 
-  while (attemps < MAX_ATTEMPS) {
+  while (1) {
     messageTurn(ffs, turn);
     messageWait(ffs, 1 - turn);
 
@@ -185,10 +245,21 @@ void game_server(fd_fifo_server_struct *ffs, Grid *fleetGrid1, Grid *fleetGrid2)
       break;
     }
 
-    printf("Got _%s_ from client %d\n", coords, turn + 1);
+    int hit = checkHit(coords, fleetGrid1, fleetGrid2, turn + 1);
+    int won = checkWon(fleetGrid1, fleetGrid2, hit);
 
-    double r = (double)rand() / RAND_MAX;
-    char target = r < 0.5 ? 'X' : '.';
+    if (won > 0) {
+      printf("Won %d\n", won);
+      messageWin(ffs, won);
+      messageLost(ffs, 2 - won);
+
+      usleep(1000);
+
+      messageByeAll(ffs);
+      break;
+    }
+
+    char target = hit ? 'X' : '.';
     sprintf(target_message, "XY%s%c", coords, target);
     target_message[6] = '\0';
 
@@ -201,7 +272,6 @@ void game_server(fd_fifo_server_struct *ffs, Grid *fleetGrid1, Grid *fleetGrid2)
     usleep(1000);
 
     turn = 1 - turn;
-    attemps++;
   }
 
   if (smooth_run) messageByeAll(ffs);
@@ -279,8 +349,6 @@ void* receiveFleetThread(void* args) {
 }
 
 void run_server() {
-  srand(time(NULL));
-
   fd_fifo_server_struct ffs = { -1, -1, -1, -1, -1, -1 };
 
   signal(SIGINT, destroy);
