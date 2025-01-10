@@ -307,8 +307,6 @@ void printDoubleGrid(Grid *grid1, Grid *grid2) {
 }
 
 void printEndScreen(int won) {
-    
-
     clearScreen2();
 
     // Vertikálne odsadenie pre zarovnanie textu do stredu
