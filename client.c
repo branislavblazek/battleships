@@ -50,16 +50,8 @@ void close_client_pipes(fd_fifo_client_struct *ffc) {
 }
 
 void fixConsoleSize() {
-    // Nastav veľkosť terminálu na 40 riadkov a 100 stĺpcov
-    system("stty rows 100 cols 100");
+  system("stty rows 100 cols 100");
 }
-
-
-void fixConsoleSize() {
-    // Nastav veľkosť terminálu na 40 riadkov a 100 stĺpcov
-    system("stty rows 100 cols 100");
-}
-
 
 int processNeighbours(char *buffer, Grid *grid) {  
   char x, y;
