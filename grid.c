@@ -16,12 +16,30 @@ int isPlacementValid(Grid* grid, int startX, int startY, int size, int isVertica
         int x = startX + (isVertical ? i : 0);
         int y = startY + (isVertical ? 0 : i);
 
+        // kontrola ci lodka nie je mimo gridu
         if (x >= GRID_SIZE || y >= GRID_SIZE || grid->cells[x][y] != EMPTY) {
-            return 0; // Neplatné umiestnenie
+            return 0;
+        }
+
+        // kontrola susedov, kvoli medzere
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dy = -1; dy <= 1; dy++) {
+                int nx = x + dx;
+                int ny = y + dy;
+
+                // ak sused je vramci gridu
+                if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE) {
+                    // ak susedna bunka je lod, nemozno umiestnit
+                    if (grid->cells[nx][ny] == SHIP) {
+                        return 0;
+                    }
+                }
+            }
         }
     }
     return 1;
 }
+
 
 void clearScreen() {
   printf(CLEAR_SCREEN);

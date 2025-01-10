@@ -31,7 +31,7 @@ void printSimpleShip() {
         "                      ___     /===========|   ___",
         "     ____       __   [\\]___/____________|__[//]   __",
         "     \\   \\_____[\\]__/___________________________\\__[//]___",
-        "      \\40A                                                 |",
+        "      \\                                                    |",
         "       \\                                                  /",
         "    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
     };
@@ -60,7 +60,7 @@ void printCenteredShip() {
         "              =====| |.---------------------------. | |====",
         "<--------------------'   .  .  .  .  .  .  .  .   '--------------/",
         "  \\                                                             /",
-        "   \\_______________________________________________WWS_________/",
+        "   \\___________________________________________________________/",
         "  wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
         "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
         "   wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww ",
