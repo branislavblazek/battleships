@@ -183,7 +183,7 @@ int read_turn(fd_fifo_server_struct *ffs, int turn, char *coords) {
   return 1;
 }
 
-int checkHit(char* data, Grid *fleetGrid1, Grid *fleetGrid2, int client) {
+int makeShoot(char* data, Grid *fleetGrid1, Grid *fleetGrid2, int client) {
   char coordsData[3];
   int x, y, current;
 
@@ -199,15 +199,19 @@ int checkHit(char* data, Grid *fleetGrid1, Grid *fleetGrid2, int client) {
 
   if (client == 1) {
     current = fleetGrid2->cells[x][y];
-    fleetGrid2->cells[x][y] = current == 1 ? HIT : MISS;
+    if (current == SHIP || current == EMPTY) {
+      fleetGrid2->cells[x][y] = current == SHIP ? HIT : MISS;
+    }
     return current;
   } else if (client == 2) {
     current = fleetGrid1->cells[x][y];
-    fleetGrid1->cells[x][y] = current == 1 ? HIT : MISS;
+    if (current == SHIP || current == EMPTY) {
+      fleetGrid1->cells[x][y] = current == SHIP ? HIT : MISS;
+    }
     return current;
   }
 
-  return 0;
+  return EMPTY;
 }
 
 int checkWon(Grid *fleetGrid1, Grid *fleetGrid2, int wasHit) {
@@ -225,11 +229,29 @@ int checkWon(Grid *fleetGrid1, Grid *fleetGrid2, int wasHit) {
   return 0;
 }
 
+int checkSink(Grid *fleetGrid, char *coords, char* buffer) {
+  int x, y;
+
+  int ok = parseInput(coords, &x, &y);
+  if (!ok) {
+    printf("Can't decode coords from server: %s\n", coords);
+    return 0;
+  }
+
+  int sink = isShipSink(fleetGrid, x, y);
+  getMissAroundSinkShip(fleetGrid, x, y, buffer);
+
+  return sink;
+}
+
 void game_server(fd_fifo_server_struct *ffs, Grid *fleetGrid1, Grid *fleetGrid2) {
   char coords[3];
   char target_message[BUFFER_SIZE];
+  char neighbour_buffer[100];
   int turn = 0;
   int smooth_run = 1;
+
+  memset(neighbour_buffer, 0, sizeof(neighbour_buffer));
 
   while (1) {
     messageTurn(ffs, turn);
@@ -245,7 +267,8 @@ void game_server(fd_fifo_server_struct *ffs, Grid *fleetGrid1, Grid *fleetGrid2)
       break;
     }
 
-    int hit = checkHit(coords, fleetGrid1, fleetGrid2, turn + 1);
+    int shoot = makeShoot(coords, fleetGrid1, fleetGrid2, turn + 1);
+    int hit = shoot == SHIP;
     int won = checkWon(fleetGrid1, fleetGrid2, hit);
 
     if (won > 0) {
@@ -259,15 +282,30 @@ void game_server(fd_fifo_server_struct *ffs, Grid *fleetGrid1, Grid *fleetGrid2)
       break;
     }
 
-    char target = hit ? 'X' : '.';
-    sprintf(target_message, "XY%s%c", coords, target);
-    target_message[6] = '\0';
+    int sink = 0;
+
+    if (hit) {
+      sink = checkSink(turn == 1 ? fleetGrid1 : fleetGrid2, coords, neighbour_buffer);
+    }
+
+    char target = (shoot == HIT || shoot == SHIP) ? 'X' : '.';
+    char isSink = sink ? 'Y' : 'N';
+    sprintf(target_message, "XY%s%c_%c", coords, target, isSink);
+    target_message[7] = '\0';
 
     target_message[5] = 'M';
     messageTurnData(ffs, turn, target_message);
 
     target_message[5] = 'E';
     messageTurnData(ffs, 1 - turn, target_message);
+
+    usleep(1000);
+
+    if (hit && sink) {
+      write(ffs->fd_fifo_client_1_write, neighbour_buffer, 100);
+      write(ffs->fd_fifo_client_2_write, neighbour_buffer, 100);
+      memset(neighbour_buffer, 0, sizeof(neighbour_buffer));
+    }
 
     usleep(1000);
 

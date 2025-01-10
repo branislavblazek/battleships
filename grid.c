@@ -1,5 +1,6 @@
 #include "grid.h"
 #include <stdio.h>
+#include <string.h>
 
 void initializeGrid(Grid* grid) {
   for (int i = 0; i < GRID_SIZE; i++) {
@@ -30,18 +31,64 @@ void clearScreen() {
 
 
 
-// TODO: do we really needs this one?
-int isShipSunk(Grid* grid, Ship* ship) {
-    for (int i = 0; i < ship->size; i++) {
-        int r = ship->startR + (ship->isVertical ? i : 0);
-        int s = ship->startS + (ship->isVertical ? 0 : i);
+int isShipSink(Grid* grid, int xHit, int yHit) {
+  if (xHit < 0 || xHit >= GRID_SIZE || yHit < 0 || yHit >= GRID_SIZE || grid->cells[xHit][yHit] != HIT) {
+    return 0;
+  }
 
-        if (grid->cells[r][s] != HIT) {
-            return 0; // Loď nie je potopená
-        }
+  int start_row = xHit;
+  int end_row = xHit;
+  int start_col = yHit;
+  int end_col = yHit;
+
+  while (start_col > 0 && grid->cells[xHit][start_col - 1] == SHIP) (start_col)--;
+  while (end_col < GRID_SIZE - 1 && grid->cells[xHit][end_col + 1] == SHIP) (end_col)++;
+
+  if (start_col == end_col) {
+    while (start_row > 0 && grid->cells[start_row - 1][yHit] == SHIP) (start_row)--;
+    while (end_row < GRID_SIZE - 1 && grid->cells[end_row + 1][yHit] == SHIP) (end_row)++;
+  }
+
+  for (int r = start_row; r <= end_row; r++) {
+    for (int c = start_col; c <= end_col; c++) {
+      if (grid->cells[r][c] == SHIP) {
+        return 0;
+      }
     }
-    ship->isSunk = 1; // Označ loď ako potopenú
-    return 1;         // Loď je potopená
+  }
+
+  return 1;
+}
+
+int getMissAroundSinkShip(Grid* grid, int xHit, int yHit, char* result) {
+  int start_row = xHit;
+  int end_row = xHit;
+  int start_col = yHit;
+  int end_col = yHit;
+
+  while (start_col > 0 && grid->cells[xHit][start_col - 1] == HIT) start_col--;
+  while (end_col < GRID_SIZE - 1 && grid->cells[xHit][end_col + 1] == HIT) end_col++;
+
+  if (start_col == end_col) {
+    while (start_row > 0 && grid->cells[start_row - 1][yHit] == HIT) start_row--;
+    while (end_row < GRID_SIZE - 1 && grid->cells[end_row + 1][yHit] == HIT) end_row++;
+  }
+  
+  for (int r = start_row - 1; r <= end_row + 1; r++) {
+    for (int c = start_col - 1; c <= end_col + 1; c++) {
+      if (r >= 0 && r < GRID_SIZE && c >= 0 && c < GRID_SIZE) {
+        if (r >= start_row && r <= end_row && c >= start_col && c <= end_col) {
+          continue;
+        }
+
+        if (grid->cells[r][c] == EMPTY) {
+          char buffer[5];
+          sprintf(buffer, "%d%d ", r, c);
+          strcat(result, buffer);
+        }
+      }
+    }
+  }
 }
 
 int isFleetDestroyed(Grid* grid) {

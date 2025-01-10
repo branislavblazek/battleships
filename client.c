@@ -55,7 +55,40 @@ void fixConsoleSize() {
 }
 
 
-void process_turn(char *buffer, Player *player) {
+void fixConsoleSize() {
+    // Nastav veľkosť terminálu na 40 riadkov a 100 stĺpcov
+    system("stty rows 100 cols 100");
+}
+
+
+int processNeighbours(char *buffer, Grid *grid) {  
+  char x, y;
+  int xVal, yVal;
+
+  printf("Buffer %s\n", buffer);
+
+  while (*buffer) {
+    if (*buffer >= '0' && *buffer <= '9') {
+      x = *buffer;
+      y = *(buffer + 1);
+      xVal = x - '0';
+      yVal = y - '0';
+
+      printf("x: %d, y: %d\n", xVal, yVal);
+      grid->cells[xVal][yVal] = MISS;
+
+      buffer += 2;
+    }
+
+    if (*buffer == ' ') {
+      buffer++;
+    }
+  }
+
+  return 1;
+}
+
+void process_turn(fd_fifo_client_struct *ffc, char *buffer, Player *player) {
   // XY1A.M
     //XY-prefix;
     //1A-coords;
@@ -63,6 +96,7 @@ void process_turn(char *buffer, Player *player) {
     //M/E-me/enemy
   char coordsPrefix[3];
   char coordsData[3];
+  char neighboursBuffer[100];
   int x, y, attack;
 
   strncpy(coordsPrefix, buffer, 2);
@@ -77,14 +111,27 @@ void process_turn(char *buffer, Player *player) {
       printf("Can't decode coords from server: %s\n", coordsData);
       return;
     }
-
-    printf("Recieved %s\n", buffer);
     
     attack = buffer[4] == '.' ? MISS : HIT;
     if (buffer[5] == 'E') {
       player->fleetGrid.cells[x][y] = attack;
     } else {
       player->trackingGrid.cells[x][y] = attack;
+    }
+
+    if (buffer[6] == 'Y') {
+      int a = 0;
+
+      while (a < 5) {
+        read(ffc->fd_fifo_server_read, neighboursBuffer, 100);
+
+        if (neighboursBuffer[0] == '\0') continue;
+
+        int ok2 = processNeighbours(neighboursBuffer, buffer[5] == 'E' ? &player->fleetGrid : &player->trackingGrid);
+        if (ok2) break;
+
+        a++;
+      }
     }
   }
 }
@@ -98,71 +145,71 @@ void* threadRendering(void* arg) {
 }
 
 void game(fd_fifo_client_struct *ffc, Player *player) {
-    pthread_t render_thread = 0; // Inicializacia vlakna, bez toho to pada
-    char buffer[BUFFER_SIZE], coordsUser[BUFFER_SIZE];
-    int isStillWaiting = 0;
+  pthread_t render_thread = 0; // Inicializacia vlakna, bez toho to pada
+  char buffer[BUFFER_SIZE], coordsUser[BUFFER_SIZE];
+  int isStillWaiting = 0, x, y;
 
-    while (1) {
-        int ok = readMessage(ffc->fd_fifo_server_read, buffer);
+  while (1) {
+    int ok = readMessage(ffc->fd_fifo_server_read, buffer);
 
-        if (ok == 1) { // disconnected
-            puts("Exit due to server disconnected.");
-            break;
-        }
-
-        int isMyTurn = strcmp(buffer, "TURN") == 0;
-        int isWaiting = strcmp(buffer, "WAIT") == 0;
-        int isWin = strcmp(buffer, "WIN") == 0;
-        int isLost = strcmp(buffer, "LOST") == 0;
-        int isExit = strcmp(buffer, "BYE") == 0;
-        int isPossibleCoords = strlen(buffer) == 6;
-
-        
-
-        if (!isWaiting) {
-            isStillWaiting = 0;
-        }
-
-        if (isMyTurn) {
-            //ATTACK
-            //neviem ci tu musi byt, ide aj bez toho ale nesledovala som to 
-            pthread_join(render_thread, NULL); 
-            //render_thread = 0;
-            printf("Enter coordinates for attack: ");
-            scanf("%s", coordsUser);
-            sendMessage(ffc->fd_fifo_server_write, coordsUser);
-        } else if (isWaiting && !isStillWaiting) {
-            isStillWaiting = 1;
-
-        } else if (isPossibleCoords) {
-            process_turn(buffer, player);
-            //if (render_thread) {
-                //pthread_join(render_thread, NULL); // Ukonči predošlé vlákno
-            //}
-            Player tempPlayer = *player;
-            pthread_create(&render_thread, NULL, threadRendering,  &tempPlayer);
-            pthread_detach(render_thread);
-        } else if (isWin) {
-            puts("YOU ARE WINEEER!");
-            printEndScreen(1);
-            break;
-        } else if (isLost) {
-            puts("HA LOOSER!");
-            printEndScreen(0);
-            break;
-        } else if (isExit) {
-            return;
-        }
+    if (ok == 1) { // disconnected
+      puts("Exit due to server disconnected.");
+      break;
     }
-    //if (render_thread) {
-       // pthread_join(render_thread, NULL); // Ukonči posledné vlákno
-    //}
+
+    int isMyTurn = strcmp(buffer, "TURN") == 0;
+    int isWaiting = strcmp(buffer, "WAIT") == 0;
+    int isWin = strcmp(buffer, "WIN") == 0;
+    int isLost = strcmp(buffer, "LOST") == 0;
+    int isExit = strcmp(buffer, "BYE") == 0;
+    int isPossibleCoords = strlen(buffer) == 7;
+
+    if (!isWaiting) {
+      isStillWaiting = 0;
+    }
+
+    if (isMyTurn) {
+      //ATTACK
+      pthread_join(render_thread, NULL); 
+      
+      usleep(2000);
+
+      int ok = 0;
+
+      while (!ok) {
+        printf("Enter coordinates for attack: ");
+        scanf("%s", coordsUser);
+        ok = parseInput(coordsUser, &x, &y);
+      }
+
+      sendMessage(ffc->fd_fifo_server_write, coordsUser);
+    } else if (isWaiting && !isStillWaiting) {
+      isStillWaiting = 1;
+
+    } else if (isPossibleCoords) {
+      process_turn(ffc, buffer, player);
+      Player tempPlayer = *player;
+      pthread_create(&render_thread, NULL, threadRendering,  &tempPlayer);
+      pthread_detach(render_thread);
+
+    } else if (isWin) {
+      puts("YOU ARE WINEEER!");
+      printEndScreen(1);
+      break;
+    } else if (isLost) {
+      puts("HA LOOSER!");
+      printEndScreen(0);
+      break;
+    } else if (isExit) {
+      return;
+    }
+  }
 }
 
 
 void createAndSendFleet(int fd_read, int fd_write, Player* player) {
-  //int shipSizes[] = {4, 3, 3, 2, 2, 2, 1, 1, 1, 1};
-  int shipSizes[] = { 1 };
+  //int shipSizes[] = { 5, 4, 4, 3, 3, 3, 2, 2, 2, 2, 1, 1, 1, 1, 1};
+  int shipSizes[] = { 2, 1 };
   int shipsCount = sizeof(shipSizes) / sizeof(shipSizes[0]);
   printCenteredGrid(&(player->fleetGrid));
   printf("Create your fleet:\n");
