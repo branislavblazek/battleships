@@ -6,17 +6,22 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
-
-void pipe_init(const char *path) {
-  if (mkfifo(path, S_IRUSR | S_IWUSR | S_IWGRP | S_IRGRP) == -1) {
-    perror("Failed to create named pipe");
-    exit(EXIT_FAILURE);
-  }
-}
+#include <errno.h>
 
 void pipe_destroy(const char *path) {
   if (unlink(path) == -1) {
+    if (errno == ENOENT) {
+      return;
+    }
     perror("Failed to unlink named pipe");
+  }
+}
+
+void pipe_init(const char *path) {
+  pipe_destroy(path);
+
+  if (mkfifo(path, S_IRUSR | S_IWUSR | S_IWGRP | S_IRGRP) == -1) {
+    perror("Failed to create named pipe");
     exit(EXIT_FAILURE);
   }
 }

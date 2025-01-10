@@ -57,8 +57,6 @@ int processNeighbours(char *buffer, Grid *grid) {
   char x, y;
   int xVal, yVal;
 
-  printf("Buffer %s\n", buffer);
-
   while (*buffer) {
     if (*buffer >= '0' && *buffer <= '9') {
       x = *buffer;
@@ -66,7 +64,6 @@ int processNeighbours(char *buffer, Grid *grid) {
       xVal = x - '0';
       yVal = y - '0';
 
-      printf("x: %d, y: %d\n", xVal, yVal);
       grid->cells[xVal][yVal] = MISS;
 
       buffer += 2;
@@ -185,12 +182,34 @@ void game(fd_fifo_client_struct *ffc, Player *player) {
       pthread_detach(render_thread);
 
     } else if (isWin) {
-      puts("YOU ARE WINEEER!");
       printEndScreen(1);
+      puts("");
+      puts("");
+      puts("");
+      puts("");
+      puts("");
+      puts("");
+      puts("");
+      puts("");
+      puts("");
+      puts("");
+      puts("");
+      usleep(100000);
       break;
     } else if (isLost) {
-      puts("HA LOOSER!");
       printEndScreen(0);
+      puts("");
+      puts("");
+      puts("");
+      puts("");
+      puts("");
+      puts("");
+      puts("");
+      puts("");
+      puts("");
+      puts("");
+      puts("");
+      usleep(100000);
       break;
     } else if (isExit) {
       return;

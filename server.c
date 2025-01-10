@@ -239,7 +239,7 @@ int checkSink(Grid *fleetGrid, char *coords, char* buffer) {
   }
 
   int sink = isShipSink(fleetGrid, x, y);
-  getMissAroundSinkShip(fleetGrid, x, y, buffer);
+  if (sink) getMissAroundSinkShip(fleetGrid, x, y, buffer);
 
   return sink;
 }
@@ -390,6 +390,8 @@ void* receiveFleetThread(void* args) {
 void run_server() {
   fd_fifo_server_struct ffs = { -1, -1, -1, -1, -1, -1 };
 
+  // destroy();
+
   signal(SIGINT, destroy);
   atexit(destroy);
 
@@ -403,20 +405,15 @@ void run_server() {
 
   connect_clients(&ffs);
 
- //posle hracom spravu, ze mozu zacat vytvarat flotilu
   messageStartAll(&ffs);
 
-  //vytvorenie flotil pre server
   Grid fleetGrid1, fleetGrid2;
   initializeGrid(&fleetGrid1);
   initializeGrid(&fleetGrid2);
  
-  //prijatie flotil od hracov
   receiveFleetParallel(&ffs, &fleetGrid1, &fleetGrid2);
 
-  //TODO pridat interface hry pre pouzivatela
   game_server(&ffs, &fleetGrid1, &fleetGrid2);
-  printf("KONIECHRY\n");
   close_server_pipes(&ffs);
 
   destroy();

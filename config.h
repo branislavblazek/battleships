@@ -4,9 +4,9 @@
 #define BUFFER_SIZE 16
 #define BUFFER_SIZE_GRID 100
 
-//#define PWD "/Users/branislav/Documents/Code/FRI/battleships"
+#define PWD "/Users/branislav/Documents/Code/FRI/battleships"
 //#define PWD "/home/blazek10/battleships"
-#define PWD "/home/adieediee/battleships/battleships"
+//#define PWD "/home/adieediee/battleships/battleships"
 
 #define PATH_CLIENT_1_SERVER "/PC_PIPE_CLIENT_1_SERVER"
 #define PATH_CLIENT_2_SERVER "/PC_PIPE_CLIENT_2_SERVER"
