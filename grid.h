@@ -36,7 +36,7 @@ void printDoubleGrid2(Grid* grid1, Grid* grid2);
 
 int isShipSink(Grid* grid, int xHit, int yHit);
 
-int getMissAroundSinkShip(Grid* grid, int xHit, int yHit, char* buffer);
+void getMissAroundSinkShip(Grid* grid, int xHit, int yHit, char* buffer);
 
 int isFleetDestroyed(Grid* grid);
 

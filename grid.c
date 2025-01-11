@@ -78,7 +78,7 @@ int isShipSink(Grid* grid, int xHit, int yHit) {
   return 1;
 }
 
-int getMissAroundSinkShip(Grid* grid, int xHit, int yHit, char* result) {
+void getMissAroundSinkShip(Grid* grid, int xHit, int yHit, char* result) {
   int start_row = xHit;
   int end_row = xHit;
   int start_col = yHit;
