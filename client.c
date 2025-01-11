@@ -210,44 +210,12 @@ void game(fd_fifo_client_struct *ffc, Player *player) {
     }
   }
 }
-
-
-void createAndSendFleet(int fd_read, int fd_write, Player* player) {
-  //int shipSizes[] = { 5, 4, 4, 3, 3, 3, 2, 2, 2, 2, 1, 1, 1, 1, 1};
+void sendFleet(int fd_read, int fd_write, Player* player) {
   int shipSizes[] = { 1 };
   int shipsCount = sizeof(shipSizes) / sizeof(shipSizes[0]);
-  printCenteredGrid(&(player->fleetGrid));
-  printf("Create your fleet:\n");
-  
-  for (int i = 0; i < shipsCount; i++) {
-    char input[BUFFER_SIZE];
-    int x, y, isVertical;
-
-    while (1) {
-      printf("Place ship of size %d. Enter position (e.g., A0 0): ", shipSizes[i]);
-      scanf("%s %d", input, &isVertical);
-      if (isVertical != 1 && isVertical != 0) {
-        printf("Invalid input for vertical/horizontal. Choose 1 for vertical or 0 for horizontal .\n");
-        continue;
-      }
-
-      int ok = parseInput(input, &x, &y);
-      if (!ok) continue;
-
-      if (placeShip(&(player->fleetGrid), x, y, shipSizes[i], isVertical) == 1) {
-        printCenteredGrid(&(player->fleetGrid));
-        //printGrid(&(player->fleetGrid));
-        printf("Ship placed successfully.\n");
-        break;
-      }
-
-      printf("Invalid placement. Try again.\n");
-    }
-  }
-  char buffer[BUFFER_SIZE_GRID];
+ char buffer[BUFFER_SIZE_GRID];
   memset(buffer, 0, sizeof(buffer));
 
-  // serializacia flotily
   serializeFleet(player, buffer, shipsCount);
 
   // odoslanie flotily serveru
@@ -273,6 +241,42 @@ void createAndSendFleet(int fd_read, int fd_write, Player* player) {
   }  
 }
 
+void createAndSendFleet(int fd_read, int fd_write, Player* player) {
+  //int shipSizes[] = { 5, 4, 4, 3, 3, 3, 2, 2, 2, 2, 1, 1, 1, 1, 1};
+  int shipSizes[] = { 1 };
+  int shipsCount = sizeof(shipSizes) / sizeof(shipSizes[0]);
+  printCenteredGrid(&(player->fleetGrid));
+  printf("Create your fleet:\n");
+  
+  for (int i = 0; i < shipsCount; i++) {
+    char input[BUFFER_SIZE];
+    int x, y, isVertical;
+
+    while (1) {
+      printf("Place ship of size %d. Enter position (e.g., A0 0): ", shipSizes[i]);
+      scanf("%s %d", input, &isVertical);
+      if (isVertical != 1 && isVertical != 0) {
+        printf("Invalid input for vertical/horizontal. Choose 1 for vertical or 0 for horizontal .\n");
+        continue;
+      }
+
+      int ok = parseInput(input, &x, &y);
+      if (!ok) continue;
+
+      if (placeShip(&(player->fleetGrid), x, y, shipSizes[i], isVertical) == 1) {
+        printCenteredGrid(&(player->fleetGrid));
+        printf("Ship placed successfully.\n");
+        break;
+      }
+
+      printf("Invalid placement. Try again.\n");
+    }
+  }
+  sendFleet(fd_read, fd_write, player);
+}
+
+
+
 void generateFleet(int fd_read, int fd_write, Player* player) {
   int shipSizes[] = { 1 };
   int shipsCount = sizeof(shipSizes) / sizeof(shipSizes[0]);
@@ -284,33 +288,7 @@ void generateFleet(int fd_read, int fd_write, Player* player) {
         player->fleetGrid.placedShipsCount, shipsCount);
     return;
 }
-  char buffer[BUFFER_SIZE_GRID];
-  memset(buffer, 0, sizeof(buffer));
-  //TODO odstranit duplicitu
-  // serializacia flotily
-  serializeFleet(player, buffer, shipsCount);
-
-  // odoslanie flotily serveru
-  write(fd_write, buffer, BUFFER_SIZE_GRID);
-
-  // potvrdenie od servera
-  char response[BUFFER_SIZE];
-  int attempts = 0;
-
-  while (attempts < 3) {
-    readMessage(fd_read, response);
-    
-    if (strcmp(response, "FLEET_OK") == 0) {
-      printf("Server confirmed fleet reception.\n");
-      break;
-    }
-
-    attempts++;
-  }
-    
-  if (attempts == 3) {
-    printf("Server reported an issue with the fleet. Please retry.\n");
-  }  
+  sendFleet(fd_read, fd_write, player);
 }
 
 void serializeFleet(Player* player, char* buffer, int shipsCount) {
