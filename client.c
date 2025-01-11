@@ -357,3 +357,10 @@ printf("Waiting for enemy player...\n");
 
   close_client_pipes(&ffc);
 }
+
+#ifdef CLIENT_MAIN
+int main() {
+  run_client();
+  return 0;
+}
+#endif

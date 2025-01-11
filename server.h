@@ -1,4 +1,8 @@
+#ifndef SERVER_H
+#define SERVER_H
+
 #pragma once
+
 #include "grid.h"
 #include "config.h"
 #include "pipe.h"
@@ -56,3 +60,5 @@ void receiveFleetParallel(fd_fifo_server_struct* ffs, Grid* grid1, Grid* grid2);
 void* receiveFleetThread(void* args);
 
 void run_server();
+
+#endif // SERVER_H

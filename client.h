@@ -1,3 +1,6 @@
+#ifndef CLIENT_H
+#define CLIENT_H
+
 #pragma once
 
 #include "config.h"
@@ -43,3 +46,5 @@ void serializeFleet(Player* player, char* buffer, int shipsCount);
 void* threadRendering(void* arg);
 
 void run_client();
+
+#endif // CLIENT_H

@@ -1,6 +1,5 @@
 #include "server.h"
 
-
 void init() {
   pipe_init(PIPE_HANDSHAKE_CLIENT_SERVER);
   pipe_init(PIPE_HANDSHAKE_SERVER_CLIENT);
@@ -404,3 +403,10 @@ void run_server() {
 
   destroy();
 }
+
+#ifdef SERVER_MAIN
+int main() {
+  run_server();
+  return 0;
+}
+#endif
