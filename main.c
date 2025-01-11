@@ -12,7 +12,7 @@
 #include <sys/wait.h>
 #include <errno.h>
 
-int main(int argc, char* argv[]) {
+int main() {
     int fd_shm, isNewShm = 0;
 
     fd_shm = shm_init(SERVER_FORK_SHM);

@@ -36,7 +36,7 @@ void shm_destroy(char *shm_name) {
 }
 
 
-int shm_set_size(char *shm_name, int fd_shm, off_t size) {
+void shm_set_size(char *shm_name, int fd_shm, off_t size) {
   if (ftruncate(fd_shm, size) == -1) {
     perror("Failed to truncate shared memory");
     shm_unlink(shm_name);
