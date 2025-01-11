@@ -45,7 +45,6 @@ void destroy() {
   pipe_destroy(PIPE_SERVER_CLIENT_1);
   pipe_destroy(PIPE_CLIENT_2_SERVER);
   pipe_destroy(PIPE_SERVER_CLIENT_2);
-  exit(0);
 }
 
 void open_server_handshake(fd_fifo_server_struct *ffs) {
@@ -351,8 +350,6 @@ if (fleet1_valid != 0 || fleet2_valid != 0) {
     printf("Error: One or both fleets are invalid. Terminating server.\n");
     exit(1);
 }
-
-
   
   printf("Both fleets have been received.\n");
 }
