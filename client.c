@@ -83,6 +83,7 @@ void process_turn(fd_fifo_client_struct *ffc, char *buffer, Player *player) {
     //1A-coords;
     //./X-water/hit;
     //M/E-me/enemy
+    //Y/N-yes hit/no hit
   char coordsPrefix[3];
   char coordsData[3];
   char neighboursBuffer[100];
@@ -140,7 +141,6 @@ void game(fd_fifo_client_struct *ffc, Player *player) {
 
   while (1) {
     int ok = readMessage(ffc->fd_fifo_server_read, buffer);
-
     if (ok == 1) { // disconnected
       puts("Exit due to server disconnected.");
       break;
@@ -164,6 +164,7 @@ void game(fd_fifo_client_struct *ffc, Player *player) {
       pthread_join(render_thread, NULL); 
       
       usleep(2000);
+      memset(coordsUser, 0, sizeof(coordsUser));
 
       int ok = 0;
 
@@ -267,7 +268,7 @@ void createAndSendFleet(int fd_read, int fd_write, Player* player) {
     attempts++;
   }
     
-  if (attempts == 3) {
+  if (attempts == 13) {
     printf("Server reported an issue with the fleet. Please retry.\n");
   }  
 }

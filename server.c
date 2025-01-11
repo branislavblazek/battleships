@@ -254,8 +254,12 @@ void game_server(fd_fifo_server_struct *ffs, Grid *fleetGrid1, Grid *fleetGrid2)
   memset(neighbour_buffer, 0, sizeof(neighbour_buffer));
 
   while (1) {
+    usleep(100000); // valgrind
+    
     messageTurn(ffs, turn);
     messageWait(ffs, 1 - turn);
+    
+    usleep(100000); // valgrind
 
     int ok = read_turn(ffs, turn, coords);
     if (ok == 0) {
@@ -272,9 +276,12 @@ void game_server(fd_fifo_server_struct *ffs, Grid *fleetGrid1, Grid *fleetGrid2)
     int won = checkWon(fleetGrid1, fleetGrid2, hit);
 
     if (won > 0) {
-        printf("Game won by Player %d (turn: %d)\n", won, turn);
-    printf("Descriptors: Client 1 = %d, Client 2 = %d\n",
+      printf("Game won by Player %d (turn: %d)\n", won, turn);
+      printf("Descriptors: Client 1 = %d, Client 2 = %d\n",
            ffs->fd_fifo_client_1_write, ffs->fd_fifo_client_2_write);
+
+       //usleep(10000); // valgrind	
+
       messageWin(ffs, won - 1); //oprava, malo by to uz fungovat
       messageLost(ffs, 2 - won);
 
@@ -295,11 +302,15 @@ void game_server(fd_fifo_server_struct *ffs, Grid *fleetGrid1, Grid *fleetGrid2)
     sprintf(target_message, "XY%s%c_%c", coords, target, isSink);
     target_message[7] = '\0';
 
+    //usleep(100000); // valgrind
+
     target_message[5] = 'M';
     messageTurnData(ffs, turn, target_message);
 
     target_message[5] = 'E';
     messageTurnData(ffs, 1 - turn, target_message);
+
+    //usleep(100000); // valgrind
 
     usleep(1000);
 
