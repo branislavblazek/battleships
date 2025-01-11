@@ -18,15 +18,18 @@ void generateRandomFleet(Grid* grid) {
     srand(time(NULL)); 
 
     //TODO inicializovat velkosti lodi univerzalne
-    int shipSizes[] = {4, 3, 3, 2, 2, 2, 1, 1, 1, 1}; 
+     int shipSizes[] = { 1 };
+    int shipsCount = sizeof(shipSizes) / sizeof(shipSizes[0]);
 
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < shipsCount; i++) {
         int size = shipSizes[i];
         while (1) { 
             int r = rand() % GRID_SIZE;
             int s = rand() % GRID_SIZE;
             int isVertical = rand() % 2;
-            placeShip(grid, r, s, size, isVertical);
+            if (placeShip(grid, r, s, size, isVertical) == 1) {
+            break;
+            }
         }
     }
 }

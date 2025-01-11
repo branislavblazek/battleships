@@ -153,6 +153,8 @@ void game(fd_fifo_client_struct *ffc, Player *player) {
     int isExit = strcmp(buffer, "BYE") == 0;
     int isPossibleCoords = strlen(buffer) == 7;
 
+    printf("Client received message: '%s'\n", buffer); // Výpis prijatej správy
+
     if (!isWaiting) {
       isStillWaiting = 0;
     }
@@ -182,36 +184,27 @@ void game(fd_fifo_client_struct *ffc, Player *player) {
       pthread_detach(render_thread);
 
     } else if (isWin) {
+      
       printEndScreen(1);
-      puts("");
-      puts("");
-      puts("");
-      puts("");
-      puts("");
-      puts("");
-      puts("");
-      puts("");
-      puts("");
-      puts("");
-      puts("");
+      printf("You won!\n");
+      
       usleep(100000);
       break;
     } else if (isLost) {
       printEndScreen(0);
-      puts("");
-      puts("");
-      puts("");
-      puts("");
-      puts("");
-      puts("");
-      puts("");
-      puts("");
-      puts("");
-      puts("");
-      puts("");
+      printf("You lost!\n");
+      
+     
       usleep(100000);
       break;
     } else if (isExit) {
+      if(!isLost && !isWin) {
+        printf("You won.\n");
+        printEndScreen(1);
+        
+        usleep(100000);
+      }
+      printf("Exit!\n");
       return;
     }
   }
@@ -220,7 +213,7 @@ void game(fd_fifo_client_struct *ffc, Player *player) {
 
 void createAndSendFleet(int fd_read, int fd_write, Player* player) {
   //int shipSizes[] = { 5, 4, 4, 3, 3, 3, 2, 2, 2, 2, 1, 1, 1, 1, 1};
-  int shipSizes[] = { 2, 1 };
+  int shipSizes[] = { 1 };
   int shipsCount = sizeof(shipSizes) / sizeof(shipSizes[0]);
   printCenteredGrid(&(player->fleetGrid));
   printf("Create your fleet:\n");
@@ -253,6 +246,46 @@ void createAndSendFleet(int fd_read, int fd_write, Player* player) {
   char buffer[BUFFER_SIZE_GRID];
   memset(buffer, 0, sizeof(buffer));
 
+  // serializacia flotily
+  serializeFleet(player, buffer, shipsCount);
+
+  // odoslanie flotily serveru
+  write(fd_write, buffer, BUFFER_SIZE_GRID);
+
+  // potvrdenie od servera
+  char response[BUFFER_SIZE];
+  int attempts = 0;
+
+  while (attempts < 3) {
+    readMessage(fd_read, response);
+    
+    if (strcmp(response, "FLEET_OK") == 0) {
+      printf("Server confirmed fleet reception.\n");
+      break;
+    }
+
+    attempts++;
+  }
+    
+  if (attempts == 3) {
+    printf("Server reported an issue with the fleet. Please retry.\n");
+  }  
+}
+
+void generateFleet(int fd_read, int fd_write, Player* player) {
+  int shipSizes[] = { 1 };
+  int shipsCount = sizeof(shipSizes) / sizeof(shipSizes[0]);
+  generateRandomFleet(&(player->fleetGrid));
+  printf("Fleet succesfully generated.\n");
+  printCenteredGrid(&(player->fleetGrid));
+  if (player->fleetGrid.placedShipsCount != shipsCount) {
+    printf("Error: Not all ships placed. Placed: %d, Expected: %d\n",
+        player->fleetGrid.placedShipsCount, shipsCount);
+    return;
+}
+  char buffer[BUFFER_SIZE_GRID];
+  memset(buffer, 0, sizeof(buffer));
+  //TODO odstranit duplicitu
   // serializacia flotily
   serializeFleet(player, buffer, shipsCount);
 
@@ -330,11 +363,39 @@ void run_client() {
   
   Player player;
   initializePlayer(&player, "PLAYER1");
+
   chooseFleetOption();
-  // klient vytvorit flotilu a posle ju serveru
-  createAndSendFleet(ffc.fd_fifo_server_read, ffc.fd_fifo_server_write, &player);
-  
-  printf("Waiting for enemy player...\n");
+  int choice = 0;
+
+    while (1) {
+        printf("Enter your choice (1 or 2):\n");
+
+        // Kontrola návratovej hodnoty scanf
+        if (scanf("%d", &choice) != 1) {
+            printf("Invalid input. Please enter a number.\n");
+            // Vyprázdni vstupný buffer
+            while (getchar() != '\n');
+            continue;
+        }
+
+        // Overenie, či je vstup 1 alebo 2
+        if (choice == 1 || choice == 2) {
+            break;
+        }
+
+        printf("Invalid choice. Select 1 or 2.\n");
+    }
+
+    
+    if (choice == 1) {
+        createAndSendFleet(ffc.fd_fifo_server_read, ffc.fd_fifo_server_write, &player);
+    } else {
+        generateFleet(ffc.fd_fifo_server_read, ffc.fd_fifo_server_write,&player);
+        //SEND
+    }
+    printDoubleGrid(&player.trackingGrid, &player.fleetGrid);
+      
+printf("Waiting for enemy player...\n");
   
   game(&ffc, &player);
 
