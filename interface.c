@@ -114,25 +114,17 @@ void waitingAnimation() {
 
 int chooseFleetOption() {
     int choice = 0;
-    while (choice < 1 || choice > 2) {
-        clearScreen2();
-        for (int i = 0; i < (TERMINAL_HEIGHT / 2 - 4); i++) printf("\n");
-        centerText("==========================================", GREEN);
-        centerText("CHOOSE YOUR FLEET SETUP", GREEN);
-        centerText("==========================================", GREEN);
-        for (int i = 0; i < 2; i++) printf("\n");
-        centerText("1. Manual setup (You place your ships)", "");
-        centerText("2. Random setup (Ships placed automatically)", "");
-        printf("\n");
-        centerText("Enter your choice (1 or 2):", YELLOW);
-        scanf("%d", &choice);
-        // TODO
-        if (choice < 1 || choice > 2) {
-            centerText("Invalid choice. Please enter 1 or 2.", RED);
-            sleep(1);
-        }
-    }
-    return choice;
+    clearScreen2();
+    for (int i = 0; i < (TERMINAL_HEIGHT / 2 - 4); i++) printf("\n");
+    centerText("==========================================", GREEN);
+    centerText("CHOOSE YOUR FLEET SETUP", GREEN);
+    centerText("==========================================", GREEN);
+    for (int i = 0; i < 2; i++) printf("\n");
+    centerText("1. Manual setup (You place your ships)", "");
+    centerText("2. Random setup (Ships placed automatically)", "");
+    printf("\n\n\n\n\n\n\n");
+    for (int i = 0; i < TERMINAL_WIDTH; i++) printf("-");
+    printf("\n");
 }
 
 void printCenteredGrid(Grid* grid) {
@@ -353,17 +345,5 @@ void printEndScreen(int won) {
       printf("\033[%d;1H", TERMINAL_HEIGHT - 2);
 }
 
-void startGameFlow() {
-    printBanner();
-    waitingAnimation();
-    
-    int fleetOption = chooseFleetOption();
-    if (fleetOption == 1) {
-        centerText("You chose manual setup. Prepare to place your ships.", GREEN);
-    } else {
-        centerText("You chose random setup. Ships will be placed automatically.", GREEN);
-    }
 
-    // Ďalší krok: prejsť na ďalšiu časť hry
-}
 

@@ -127,23 +127,23 @@ void messageBye(fd_fifo_server_struct *ffs, int turn) {
 }
 
 void messageWin(fd_fifo_server_struct *ffs, int turn) {
-  char message[BUFFER_SIZE] = "WIN";
-  
-  int fd = turn == 0
-    ? ffs->fd_fifo_client_1_write
-    : ffs->fd_fifo_client_2_write;
-  
-  sendMessage(fd, message);
+    char message[BUFFER_SIZE] = "WIN";
+    int fd = turn == 0
+        ? ffs->fd_fifo_client_1_write
+        : ffs->fd_fifo_client_2_write;
+
+    printf("Sending WIN to Client %d (FIFO descriptor: %d)\n", turn + 1, fd);
+    sendMessage(fd, message);
 }
 
 void messageLost(fd_fifo_server_struct *ffs, int turn) {
-  char message[BUFFER_SIZE] = "LOST";
-  
-  int fd = turn == 0
-    ? ffs->fd_fifo_client_1_write
-    : ffs->fd_fifo_client_2_write;
-  
-  sendMessage(fd, message);
+    char message[BUFFER_SIZE] = "LOST";
+    int fd = turn == 0
+        ? ffs->fd_fifo_client_1_write
+        : ffs->fd_fifo_client_2_write;
+
+    printf("Sending LOST to Client %d (FIFO descriptor: %d)\n", turn + 1, fd);
+    sendMessage(fd, message);
 }
 
 void messageTurnData(fd_fifo_server_struct *ffs, int turn, char *data) {
@@ -272,8 +272,10 @@ void game_server(fd_fifo_server_struct *ffs, Grid *fleetGrid1, Grid *fleetGrid2)
     int won = checkWon(fleetGrid1, fleetGrid2, hit);
 
     if (won > 0) {
-      printf("Won %d\n", won);
-      messageWin(ffs, won);
+        printf("Game won by Player %d (turn: %d)\n", won, turn);
+    printf("Descriptors: Client 1 = %d, Client 2 = %d\n",
+           ffs->fd_fifo_client_1_write, ffs->fd_fifo_client_2_write);
+      messageWin(ffs, won - 1); //oprava, malo by to uz fungovat
       messageLost(ffs, 2 - won);
 
       usleep(1000);
@@ -327,10 +329,19 @@ void receiveFleetParallel(fd_fifo_server_struct* ffs, Grid* grid1, Grid* grid2) 
   pthread_create(&thread2, NULL, receiveFleetThread, &args2);
 
   // synchornizacia vlakien
-  pthread_join(thread1, NULL);
-  printf("Fleet for Client 1 received successfully.\n");
-  pthread_join(thread2, NULL);
-  printf("Fleet for Client 2 received successfully.\n");
+  //bez tychto vypisov to nefunguje, mozno treba nejaky usleep
+  int fleet1_valid = pthread_join(thread1, NULL);
+  printf("Fleet for Client 1 received successfully: %s\n", fleet1_valid == 0 ? "YES" : "NO");
+
+  int fleet2_valid = pthread_join(thread2, NULL);
+  printf("Fleet for Client 2 received successfully: %s\n", fleet2_valid == 0 ? "YES" : "NO");
+
+if (fleet1_valid != 0 || fleet2_valid != 0) {
+    printf("Error: One or both fleets are invalid. Terminating server.\n");
+    exit(1);
+}
+
+
   
   printf("Both fleets have been received.\n");
 }
