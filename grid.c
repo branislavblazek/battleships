@@ -40,15 +40,6 @@ int isPlacementValid(Grid* grid, int startX, int startY, int size, int isVertica
     return 1;
 }
 
-
-void clearScreen() {
-  printf(CLEAR_SCREEN);
-  printf("\033[H");
-  fflush(stdout);
-}
-
-
-
 int isShipSink(Grid* grid, int xHit, int yHit) {
   if (xHit < 0 || xHit >= GRID_SIZE || yHit < 0 || yHit >= GRID_SIZE || grid->cells[xHit][yHit] != HIT) {
     return 0;
@@ -112,10 +103,10 @@ void getMissAroundSinkShip(Grid* grid, int xHit, int yHit, char* result) {
 int isFleetDestroyed(Grid* grid) {
     for (int i = 0; i < 10; i++) {
         if (!grid->ships[i].isSunk) {
-            return 0; // Hráč má ešte aktívnu loď
+            return 0; 
         }
     }
-    return 1; // Všetky lode sú zničené
+    return 1;
 }
 
 int checkShips(Grid* grid) {

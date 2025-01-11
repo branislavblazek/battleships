@@ -5,7 +5,6 @@
 #include <stdlib.h>
 #include <time.h>
 
-// Inicializácia hráča
 void initializePlayer(Player* player, const char* name) {
     strncpy(player->name, name, sizeof(player->name) - 1);
     player->name[sizeof(player->name) - 1] = '\0';
@@ -14,12 +13,8 @@ void initializePlayer(Player* player, const char* name) {
     player->score = 0;   
 }
 
-void generateRandomFleet(Grid* grid) {
+void generateRandomFleet(Grid* grid, int shipSizes[], int shipsCount) {
     srand(time(NULL)); 
-
-    //TODO inicializovat velkosti lodi univerzalne
-     int shipSizes[] = { 1 };
-    int shipsCount = sizeof(shipSizes) / sizeof(shipSizes[0]);
 
     for (int i = 0; i < shipsCount; i++) {
         int size = shipSizes[i];
