@@ -1,24 +1,5 @@
-#include "config.h"
-#include "pipe.h"
-#include "communication.h"
-#include "player.h"
 #include "client.h"
-#include "utils.h"
-#include "interface.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <errno.h>
-#include <pthread.h>
-
-typedef struct {
-  int fd_fifo_handshake_read;
-  int fd_fifo_handshake_write;
-  int fd_fifo_server_write;
-  int fd_fifo_server_read;
-} fd_fifo_client_struct;
 
 void open_client_handshake(fd_fifo_client_struct *ffc) {
   ffc->fd_fifo_handshake_write = pipe_open_write(PIPE_HANDSHAKE_CLIENT_SERVER);
@@ -135,7 +116,7 @@ void* threadRendering(void* arg) {
 }
 
 void game(fd_fifo_client_struct *ffc, Player *player) {
-  pthread_t render_thread = 0; // Inicializacia vlakna, bez toho to pada
+  pthread_t render_thread = 0; 
   char buffer[BUFFER_SIZE], coordsUser[BUFFER_SIZE];
   int isStillWaiting = 0, x, y;
 
@@ -153,7 +134,7 @@ void game(fd_fifo_client_struct *ffc, Player *player) {
     int isExit = strcmp(buffer, "BYE") == 0;
     int isPossibleCoords = strlen(buffer) == 7;
 
-    printf("Client received message: '%s'\n", buffer); // Výpis prijatej správy
+    printf("Client received message: '%s'\n", buffer); 
 
     if (!isWaiting) {
       isStillWaiting = 0;
@@ -211,9 +192,8 @@ void game(fd_fifo_client_struct *ffc, Player *player) {
   }
 }
 void sendFleet(int fd_read, int fd_write, Player* player) {
-  int shipSizes[] = { 1 };
-  int shipsCount = sizeof(shipSizes) / sizeof(shipSizes[0]);
- char buffer[BUFFER_SIZE_GRID];
+  int shipsCount = SHIP_COUNT;
+  char buffer[BUFFER_SIZE_GRID];
   memset(buffer, 0, sizeof(buffer));
 
   serializeFleet(player, buffer, shipsCount);
@@ -242,9 +222,9 @@ void sendFleet(int fd_read, int fd_write, Player* player) {
 }
 
 void createAndSendFleet(int fd_read, int fd_write, Player* player) {
-  //int shipSizes[] = { 5, 4, 4, 3, 3, 3, 2, 2, 2, 2, 1, 1, 1, 1, 1};
-  int shipSizes[] = { 1 };
-  int shipsCount = sizeof(shipSizes) / sizeof(shipSizes[0]);
+  
+  int shipSizes[] = SHIP_SIZES;
+  int shipsCount = SHIP_COUNT;
   printCenteredGrid(&(player->fleetGrid));
   printf("Create your fleet:\n");
   
@@ -278,9 +258,9 @@ void createAndSendFleet(int fd_read, int fd_write, Player* player) {
 
 
 void generateFleet(int fd_read, int fd_write, Player* player) {
-  int shipSizes[] = { 1 };
-  int shipsCount = sizeof(shipSizes) / sizeof(shipSizes[0]);
-  generateRandomFleet(&(player->fleetGrid));
+  int shipSizes[] = SHIP_SIZES;
+  int shipsCount = SHIP_COUNT;
+  generateRandomFleet(&(player->fleetGrid), shipSizes, shipsCount);
   printf("Fleet succesfully generated.\n");
   printCenteredGrid(&(player->fleetGrid));
   if (player->fleetGrid.placedShipsCount != shipsCount) {
@@ -348,16 +328,13 @@ void run_client() {
 
     while (1) {
         printf("Enter your choice (1 or 2):\n");
-
-        // Kontrola návratovej hodnoty scanf
+ 
         if (scanf("%d", &choice) != 1) {
             printf("Invalid input. Please enter a number.\n");
             // Vyprázdni vstupný buffer
             while (getchar() != '\n');
             continue;
         }
-
-        // Overenie, či je vstup 1 alebo 2
         if (choice == 1 || choice == 2) {
             break;
         }

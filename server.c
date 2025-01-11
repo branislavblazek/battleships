@@ -1,33 +1,5 @@
 #include "server.h"
-#include "config.h"
-#include "pipe.h"
-#include "communication.h"
-#include "player.h"
-#include "utils.h"
-#include "grid.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <errno.h>
-#include <signal.h>
-#include <pthread.h>
-
-typedef struct {
-  int fd_fifo_handshake_read;
-  int fd_fifo_handshake_write;
-  int fd_fifo_client_1_read;
-  int fd_fifo_client_1_write;
-  int fd_fifo_client_2_read;
-  int fd_fifo_client_2_write;
-} fd_fifo_server_struct;
-
-typedef struct {
-  fd_fifo_server_struct* ffs;
-  int client_id;
-  Grid* fleetGrid;
-} FleetThreadArgs;
 
 void init() {
   pipe_init(PIPE_HANDSHAKE_CLIENT_SERVER);
@@ -350,7 +322,6 @@ if (fleet1_valid != 0 || fleet2_valid != 0) {
     printf("Error: One or both fleets are invalid. Terminating server.\n");
     exit(1);
 }
-  
   printf("Both fleets have been received.\n");
 }
 
@@ -386,7 +357,6 @@ void* receiveFleetThread(void* args) {
       token = strtok(NULL, " ");
 
       // validuje a prida lod
-      
       int shipPlaced = placeShip(fleetArgs->fleetGrid, x, y, size, isVertical);
       if(shipPlaced) {
         //TODO vymazat
@@ -398,9 +368,6 @@ void* receiveFleetThread(void* args) {
           return NULL;
       }
   }
-  
-  //printGrid(fleetArgs->fleetGrid); -> toto tu netreba?
-
   char message[BUFFER_SIZE] = "FLEET_OK";
   sendMessage(fd_write, message);
   return NULL;

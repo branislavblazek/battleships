@@ -10,10 +10,10 @@
 #define RESET_COLOR     "\033[0m"
 
 
-void clearScreen2();
+void clearScreen();
 void printBanner();
 void waitingAnimation();
 void printCenteredGrid();
 int chooseFleetOption();
-int printDoubleGrid();
+void printDoubleGrid();
 void printEndScreen(int won);

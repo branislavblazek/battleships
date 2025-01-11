@@ -5,10 +5,10 @@
 #include "ship.h"
 
 typedef struct {
-    char name[50];      // Meno hráča
-    Grid fleetGrid;     // Grid s jeho flotilou
-    Grid trackingGrid;  // Grid na sledovanie súpera
-    int score;          // Počet zničených lodí súpera
+    char name[50];      
+    Grid fleetGrid;     // hracova flotila
+    Grid trackingGrid;  // grid na sledovanie supera
+    int score;          
 } Player;
 
 
@@ -16,6 +16,6 @@ void initializePlayer(Player* player, const char* name);
 
 int placeShip(Grid* grid, int startR, int startC,int size, int isVertical);
 
-void generateRandomFleet(Grid* grid);
+void generateRandomFleet(Grid* grid, int shipSizes[], int shipsCount);
 
 #endif // PLAYER_H
