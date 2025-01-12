@@ -20,8 +20,8 @@
 
 //#define SHIP_SIZES {4, 3, 3, 2, 2, 2, 1, 1, 1, 1}
 //#define SHIP_COUNT 10
-#define SHIP_SIZES {1}
-#define SHIP_COUNT 1
+#define SHIP_SIZES {4, 3, 2, 1}
+#define SHIP_COUNT 4
 
 
 typedef struct {

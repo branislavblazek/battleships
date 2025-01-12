@@ -6,9 +6,9 @@
 
 
 //#define PWD "/Users/branislav/Documents/Code/FRI/battleships"
-//#define PWD "/home/blazek10/battleships"
+#define PWD "/home/blazek10/battleships"
 //#define PWD "/home/adieediee/battleships/battleships"
-#define PWD "/home/gemelova1/battleships/battleships"
+//#define PWD "/home/gemelova1/battleships/battleships"
 
 #define SERVER_FORK_SHM "/SERVER_FORK_SHM"
 

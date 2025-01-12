@@ -269,6 +269,7 @@ void game_server(fd_fifo_server_struct *ffs, Grid *fleetGrid1, Grid *fleetGrid2)
 
     char target = (shoot == HIT || shoot == SHIP) ? 'X' : '.';
     char isSink = sink ? 'Y' : 'N';
+    memset(target_message, 0, sizeof(target_message));
     sprintf(target_message, "XY%s%c_%c", coords, target, isSink);
     target_message[7] = '\0';
 
