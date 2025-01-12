@@ -312,16 +312,16 @@ void receiveFleetParallel(fd_fifo_server_struct* ffs, Grid* grid1, Grid* grid2) 
   // synchornizacia vlakien
   //bez tychto vypisov to nefunguje, mozno treba nejaky usleep
   int fleet1_valid = pthread_join(thread1, NULL);
-  printf("Fleet for Client 1 received successfully: %s\n", fleet1_valid == 0 ? "YES" : "NO");
+  //printf("Fleet for Client 1 received successfully: %s\n", fleet1_valid == 0 ? "YES" : "NO");
 
   int fleet2_valid = pthread_join(thread2, NULL);
-  printf("Fleet for Client 2 received successfully: %s\n", fleet2_valid == 0 ? "YES" : "NO");
+  //printf("Fleet for Client 2 received successfully: %s\n", fleet2_valid == 0 ? "YES" : "NO");
 
 if (fleet1_valid != 0 || fleet2_valid != 0) {
     printf("Error: One or both fleets are invalid. Terminating server.\n");
     exit(1);
 }
-  printf("Both fleets have been received.\n");
+  //printf("Both fleets have been received.\n");
 }
 
 void* receiveFleetThread(void* args) {
@@ -335,11 +335,11 @@ void* receiveFleetThread(void* args) {
     ? fleetArgs->ffs->fd_fifo_client_1_write
     : fleetArgs->ffs->fd_fifo_client_2_write;
 
-  printf("Receiving fleet for Client %d...\n", fleetArgs->client_id);
+  //printf("Receiving fleet for Client %d...\n", fleetArgs->client_id);
 
   // precita cely buffer
   read(fd_read, buffer, sizeof(buffer));
-  printf("Received fleet: %s\n", buffer);
+  //printf("Received fleet: %s\n", buffer);
 
   // rozbali lode z bufferu
   int x, y, isVertical, size;
@@ -363,7 +363,7 @@ void* receiveFleetThread(void* args) {
           char message[BUFFER_SIZE];
           strcpy(message, "INVALID");
           sendMessage(fd_write, message);
-          printf("Invalid fleet received from Client %d.\n", fleetArgs->client_id);
+          //printf("Invalid fleet received from Client %d.\n", fleetArgs->client_id);
           return NULL;
       }
   }

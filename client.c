@@ -123,7 +123,7 @@ void game(fd_fifo_client_struct *ffc, Player *player) {
   while (1) {
     int ok = readMessage(ffc->fd_fifo_server_read, buffer);
     if (ok == 1) { // disconnected
-      puts("Exit due to server disconnected.");
+      //puts("Exit due to server disconnected.");
       break;
     }
 
@@ -134,7 +134,7 @@ void game(fd_fifo_client_struct *ffc, Player *player) {
     int isExit = strcmp(buffer, "BYE") == 0;
     int isPossibleCoords = strlen(buffer) == 7;
 
-    printf("Client received message: '%s'\n", buffer); 
+    //printf("Client received message: '%s'\n", buffer); 
 
     if (!isWaiting) {
       isStillWaiting = 0;
@@ -331,7 +331,6 @@ void run_client() {
  
         if (scanf("%d", &choice) != 1) {
             printf("Invalid input. Please enter a number.\n");
-            // Vyprázdni vstupný buffer
             while (getchar() != '\n');
             continue;
         }
